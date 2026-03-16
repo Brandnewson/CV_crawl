@@ -1,6 +1,4 @@
 {
-  "excluded": [
-    "TyreDataVisualiser"
-  ],
+  "excluded": ["fastAPI-design-project", "TyreDataVisualiser"],
   "partial": []
 }

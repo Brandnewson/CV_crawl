@@ -1,7 +1,7 @@
-# cv-harvester — Agentic CV Intelligence Tool
+# cv-harvester - Agentic CV Intelligence Tool
 
 > A Claude Code slash command that deploys four parallel sub-agents to mine your
-> local projects, GitHub history, and job applications — producing per-project
+> local projects, GitHub history, and job applications - producing per-project
 > CV entries tailored to the roles you are actually applying for.
 
 ---
@@ -22,29 +22,29 @@
 
 ```
 User types: /cv-harvest
-                │
-                ▼
-     ┌──────────────────────┐
-     │   ORCHESTRATOR       │
-     │   Step 0: list Code\ │
-     └──┬───────────────────┘
-        │  fires all four simultaneously via Task()
-        │
-   ┌────┴──────┬─────────────┬──────────────┐
-   ▼           ▼             ▼              ▼
+                |
+                v
+     +----------------------+
+     |   ORCHESTRATOR       |
+     |   Step 0: list Code\ |
+     +--+-------------------+
+        |  fires all four simultaneously via Task()
+        |
+   +----+------+-------------+--------------+
+   v           v             v              v
 Code        GitHub       Job Target     Git History
 Analyst     Analyst       Analyst        Analyst
-   │           │             │              │
-   └───────────┴─────────────┴──────────────┘
-                       │
+   |           |             |              |
+   +-----------+-------------+--------------+
+                       |
                structured XML
-                       │
-                       ▼
-              ┌─────────────────┐
-              │   CV WRITER     │
-              │   sub-agent     │
-              └────────┬────────┘
-                       │
+                       |
+                       v
+              +-----------------+
+              |   CV WRITER     |
+              |   sub-agent     |
+              +--------+--------+
+                       |
            .cv-harvest-output.md
 ```
 
@@ -52,7 +52,7 @@ Analyst     Analyst       Analyst        Analyst
 
 | Pattern | Where |
 |---|---|
-| **Orchestrator/sub-agent decomposition** | Orchestrator → 4 analysts → 1 writer |
+| **Orchestrator/sub-agent decomposition** | Orchestrator -> 4 analysts -> 1 writer |
 | **Parallel Task execution** | All 4 analysts fire simultaneously |
 | **Structured XML inter-agent protocol** | Every agent speaks typed XML schemas |
 | **Tool-augmented agents** | Agents run PowerShell, curl, Python as tools |
@@ -86,18 +86,18 @@ Copy-Item -Recurse "path\to\cv-harvester\.claude" "C:\Code\CV_crawl\.claude"
 Your Code folder should now look like:
 ```
 C:\Code\CV_crawl\
-├── .claude\
-│   ├── commands\
-│   │   └── cv-harvest.md
-│   └── mcp.json
-├── project-1\
-├── project-2\
-└── ...
++-- .claude\
+|   +-- commands\
+|   |   +-- cv-harvest.md
+|   +-- mcp.json
++-- project-1\
++-- project-2\
++-- ...
 ```
 
 ### 3. (Optional but recommended) Add MCP servers
 
-Skip the `claude mcp add` CLI — just paste this file directly:
+Skip the `claude mcp add` CLI - just paste this file directly:
 
 **Create `C:\Code\CV_crawl\.claude\mcp.json`** with this content:
 
@@ -116,7 +116,7 @@ Skip the `claude mcp add` CLI — just paste this file directly:
 }
 ```
 
-The `mcp.json` file is already included in the `.claude` folder you downloaded — just make sure it lands at `C:\Code\CV_crawl\.claude\mcp.json`.
+The `mcp.json` file is already included in the `.claude` folder you downloaded - just make sure it lands at `C:\Code\CV_crawl\.claude\mcp.json`.
 
 ### 4. Log in and run
 
@@ -127,7 +127,7 @@ claude
 > /cv-harvest
 ```
 
-Expect 2–5 minutes. Output saved to `.cv-harvest-output.md`.
+Expect 2-5 minutes. Output saved to `.cv-harvest-output.md`.
 
 ---
 

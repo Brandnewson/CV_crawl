@@ -16,7 +16,7 @@ A .docx file is a ZIP archive containing XML files.
 |------|----------|
 | Read/analyze content | `pandoc` or unpack for raw XML |
 | Create new document | Use `docx-js` - see Creating New Documents below |
-| Edit existing document | Unpack → edit XML → repack - see Editing Existing Documents below |
+| Edit existing document | Unpack -> edit XML -> repack - see Editing Existing Documents below |
 
 ### Converting .doc to .docx
 
@@ -142,16 +142,16 @@ const doc = new Document({
 ### Lists (NEVER use unicode bullets)
 
 ```javascript
-// ❌ WRONG - never manually insert bullet characters
-new Paragraph({ children: [new TextRun("• Item")] })  // BAD
+// [x] WRONG - never manually insert bullet characters
+new Paragraph({ children: [new TextRun("- Item")] })  // BAD
 new Paragraph({ children: [new TextRun("\u2022 Item")] })  // BAD
 
-// ✅ CORRECT - use numbering config with LevelFormat.BULLET
+// [x] CORRECT - use numbering config with LevelFormat.BULLET
 const doc = new Document({
   numbering: {
     config: [
       { reference: "bullets",
-        levels: [{ level: 0, format: LevelFormat.BULLET, text: "•", alignment: AlignmentType.LEFT,
+        levels: [{ level: 0, format: LevelFormat.BULLET, text: "-", alignment: AlignmentType.LEFT,
           style: { paragraph: { indent: { left: 720, hanging: 360 } } } }] },
       { reference: "numbers",
         levels: [{ level: 0, format: LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT,
@@ -168,7 +168,7 @@ const doc = new Document({
   }]
 });
 
-// ⚠️ Each reference creates INDEPENDENT numbering
+// [!] Each reference creates INDEPENDENT numbering
 // Same reference = continues (1,2,3 then 4,5,6)
 // Different reference = restarts (1,2,3 then 1,2,3)
 ```
@@ -204,7 +204,7 @@ new Table({
 
 **Table width calculation:**
 
-Always use `WidthType.DXA` — `WidthType.PERCENTAGE` breaks in Google Docs.
+Always use `WidthType.DXA` - `WidthType.PERCENTAGE` breaks in Google Docs.
 
 ```javascript
 // Table width = sum of columnWidths = content width
@@ -214,7 +214,7 @@ columnWidths: [7000, 2360]  // Must sum to table width
 ```
 
 **Width rules:**
-- **Always use `WidthType.DXA`** — never `WidthType.PERCENTAGE` (incompatible with Google Docs)
+- **Always use `WidthType.DXA`** - never `WidthType.PERCENTAGE` (incompatible with Google Docs)
 - Table width must equal the sum of `columnWidths`
 - Cell `width` must match corresponding `columnWidth`
 - Cell `margins` are internal padding - they reduce content area, not add to cell width
@@ -403,7 +403,7 @@ sections: [{
 ```bash
 python scripts/office/unpack.py document.docx unpacked/
 ```
-Extracts XML, pretty-prints, merges adjacent runs, and converts smart quotes to XML entities (`&#x201C;` etc.) so they survive editing. Use `--merge-runs false` to skip run merging.
+Extracts XML, pretty-prints, merges adjacent runs, and converts smart quotes to XML entities (`"` etc.) so they survive editing. Use `--merge-runs false` to skip run merging.
 
 ### Step 2: Edit XML
 
@@ -420,10 +420,10 @@ Edit files in `unpacked/word/`. See XML Reference below for patterns.
 ```
 | Entity | Character |
 |--------|-----------|
-| `&#x2018;` | ‘ (left single) |
-| `&#x2019;` | ’ (right single / apostrophe) |
-| `&#x201C;` | “ (left double) |
-| `&#x201D;` | ” (right double) |
+| `&#x2018;` | ' (left single) |
+| `&#x2019;` | ' (right single / apostrophe) |
+| `&#x201C;` | " (left double) |
+| `&#x201D;` | " (right double) |
 
 **Adding comments:** Use `comment.py` to handle boilerplate across multiple XML files (text must be pre-escaped XML):
 ```bash

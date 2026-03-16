@@ -9,14 +9,14 @@ Called from `/cv-apply` after the CV is approved.
 
 This skill is designed around four properties:
 
-**1. Narrow sub-tasks** — each step has one job and one output. No step does scoring
+**1. Narrow sub-tasks** - each step has one job and one output. No step does scoring
 AND writing AND validating. This keeps each LLM call focused and accurate.
 
-**2. Token efficiency** — no sub-agent receives context it does not use. Story facts
+**2. Token efficiency** - no sub-agent receives context it does not use. Story facts
 are loaded from `story-bank.json` on demand; only selected stories are passed to
 writers. Style rules are included only in writing prompts.
 
-**3. Context-rot immunity** — no step relies on in-memory session variables from the
+**3. Context-rot immunity** - no step relies on in-memory session variables from the
 calling conversation. All shared state is written to `.cv-cl-checkpoint.json` after
 each step and read back fresh at the start of the next. Long conversations can never
 corrupt state.
@@ -84,7 +84,7 @@ while attempt <= MAX_RETRIES:
     validation_error = validate_output_schema(output, expected_schema)
 
     if validation_error is None:
-        break  ← success
+        break  <- success
 
     attempt += 1
     if attempt > MAX_RETRIES:
@@ -92,7 +92,7 @@ while attempt <= MAX_RETRIES:
         Tell user: "Step N failed after 3 attempts. See checkpoint for details. You can retry by typing /resume."
         Halt this skill.
 
-    ← append to prompt for next attempt:
+    <- append to prompt for next attempt:
     "Your previous output failed validation with this error: [validation_error]
      Regenerate from scratch. The output MUST match the required format exactly."
 ```
@@ -117,21 +117,21 @@ Each story has: `label`, `title`, `themes`, `keyword_heuristics`, `facts`, `do_n
 Included verbatim into all writing sub-agent prompts and the quality gate.
 
 ```
-STYLE RULES — apply without exception:
-- First person throughout. Never say "Branson did X" — say "I did X".
+STYLE RULES - apply without exception:
+- First person throughout. Never say "Branson did X" - say "I did X".
 - Tell a story, don't sell. Write as if explaining what happened. The story sells itself.
 - British English: optimised, analysed, modelling, recognise.
 - Balanced tone: confident but not arrogant.
 - FORBIDDEN WORDS: passionate, leverage, synergy, dynamic,
   fast-paced, team player, results-driven, excited to, highly motivated, dedicated,
   meticulous, diligent.
-- 1–2 ideas per sentence maximum.
+- 1-2 ideas per sentence maximum.
 - Concrete over vague: name the tool, the team, the outcome.
 - Varied sentence length: mix short punchy sentences with longer contextual ones.
 - Active voice: "I built" not "a tool was built by me".
 - FORBIDDEN OPENINGS: "I am writing to apply for", "at this exciting opportunity",
   "I would be a great fit", "I look forward to hearing from you at your earliest convenience".
-- No em-dashes (—) or en-dashes (–) in body text. Rewrite the sentence.
+- No em-dashes (-) or en-dashes (-) in body text. Rewrite the sentence.
 - No colons in body text. Restructure the sentence.
 - No semicolons in body text. Split into two sentences.
 - No comma-separated lists ("x, y and z"). Weave naturally or use separate sentences.
@@ -146,7 +146,7 @@ STYLE RULES — apply without exception:
 
 ---
 
-## Step 0 — Resume detection
+## Step 0 - Resume detection
 
 **Before anything else**, check if `C:\Code\CV_crawl\.cv-cl-checkpoint.json` exists.
 
@@ -154,12 +154,12 @@ If it exists, read it and check `job_id` against the current `job_id` from the c
 
 - **Same job_id AND `step_completed` >= 1:** Print:
   ```
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  RESUME DETECTED — [company] | [job_title]
+  -----------------------------------------
+  RESUME DETECTED - [company] | [job_title]
   Last completed step: [step_completed]
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  -----------------------------------------
   [R]esume from step [N+1]  |  [S]tart fresh
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  -----------------------------------------
   ```
   If `R`: skip all completed steps and jump to step `step_completed + 1`, loading
   state from checkpoint.
@@ -169,7 +169,7 @@ If it exists, read it and check `job_id` against the current `job_id` from the c
 
 ---
 
-## Step 1 — Context bootstrap
+## Step 1 - Context bootstrap
 
 **Purpose:** validate caller-supplied context and write the initial checkpoint.
 
@@ -197,7 +197,7 @@ drop generic ones like "communication" or "team player".
 
 ---
 
-## Step 2 — Load sender profile
+## Step 2 - Load sender profile
 
 **Purpose:** load or collect the candidate's address. One task, one file.
 
@@ -220,7 +220,7 @@ Update checkpoint: add `"profile": {...}` and set `"step_completed": 2`.
 
 ---
 
-## Step 3 — Company address
+## Step 3 - Company address
 
 **Purpose:** a single optional input. Keep it separate so it cannot block other steps.
 
@@ -234,7 +234,7 @@ set `"step_completed": 3`.
 
 ---
 
-## Step 4 — Story scoring
+## Step 4 - Story scoring
 
 **Purpose:** pick the 3 best stories using keyword matching. **Do NOT load full story
 facts here.** Load only metadata.
@@ -246,7 +246,7 @@ If it exists, load the last 10 entries.
 
 For each story label, compute a `history_penalty`:
 ```
-history_penalty(story) = -0.5 × (mean refinement_cycles for entries where this story
+history_penalty(story) = -0.5 x (mean refinement_cycles for entries where this story
                                   was used AND role keywords overlap > 50% with current)
 ```
 A story that consistently needed 2 refinement cycles for similar roles scores -1.0.
@@ -256,8 +256,8 @@ A story never needing refinement scores 0.0. A story never used scores 0.0.
 
 For each story in story-bank.json, compute:
 ```
-base_score = (2 × count of required keywords matching keyword_heuristics)
-           + (1 × count of nice_to_have keywords matching keyword_heuristics)
+base_score = (2 x count of required keywords matching keyword_heuristics)
+           + (1 x count of nice_to_have keywords matching keyword_heuristics)
 final_score = base_score + history_penalty(story)
 ```
 
@@ -281,9 +281,9 @@ Record scores and selection:
 ### 4d. Present to user
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STORY SELECTION — [company] | [job_title]
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-------------------------------------------------------------
+STORY SELECTION - [company] | [job_title]
+-------------------------------------------------------------
 Para 1:  [story title]  (score: [N])
          Themes: [themes]
          Matches: [matched required keywords]
@@ -297,7 +297,7 @@ Para 3:  [story title]  (score: [N])
          Matches: [matched required keywords]
 
 [A]ccept  |  [S]wap: e.g. "swap para2 for travelindr_mvp"
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-------------------------------------------------------------
 ```
 
 If swap: apply it, confirm the new selection, re-present.
@@ -305,7 +305,7 @@ Update checkpoint: set `"step_completed": 4`.
 
 ---
 
-## Step 5 — Sequenced drafting
+## Step 5 - Sequenced drafting
 
 **Purpose:** write intro and conclusion first, then write body paragraphs modularly
 using intro/conclusion as context.
@@ -318,13 +318,13 @@ From `story-bank.json`, for each of the 3 selected story labels, load:
 
 Do not load themes, keyword_heuristics, or any other stories.
 
-### 5A — Intro + Conclusion sub-agent (run first)
+### 5A - Intro + Conclusion sub-agent (run first)
 
 Spawn a single sub-agent with this prompt:
 
 ```
 You are a cover letter writer. Write ONLY the intro and conclusion for a cover letter.
-Output ONLY the two labelled sections — no other text.
+Output ONLY the two labelled sections - no other text.
 
 === CANDIDATE ===
 Name: [name]
@@ -340,24 +340,24 @@ Date: [today's date, e.g. "16th March 2026"]
 [story title 1], [story title 2], [story title 3]
 
 === REQUIRED KEYWORDS ===
-[keywords.required — max 12 items]
+[keywords.required - max 12 items]
 
 === INTRO INSTRUCTIONS ===
-3–4 sentences.
+3-4 sentences.
 - State who you are and what you offer at the intersection of your skills.
-- You may name the company if it flows naturally. Never name the specific role title —
+- You may name the company if it flows naturally. Never name the specific role title -
   express intent through what you want to contribute, not by attaching a job label.
   If mentioning the company would feel like a formal declaration of intent, leave it out
   and let the conclusion carry that weight.
-- End with a concrete signal of why THIS company — not a generic claim. Reference
+- End with a concrete signal of why THIS company - not a generic claim. Reference
   something specific about their work, mission, or technical scope.
 - MUST NOT open with "I am writing to apply for".
 - MUST NOT contain any sentence that reads like a formal application statement,
-  e.g. "I am applying for the X role at Y." This sounds stiff and adds nothing —
+  e.g. "I am applying for the X role at Y." This sounds stiff and adds nothing -
   the reader already knows you are applying.
 
 === CONCLUSION INSTRUCTIONS ===
-2–3 sentences.
+2-3 sentences.
 - State what you specifically want to contribute in this role.
 - Reference the role's technical scope or something concrete about the company.
 - Must NOT repeat the intro.
@@ -382,13 +382,13 @@ Create a compact framing summary for downstream body generation:
 - `company_hook` (one sentence)
 - `intended_contribution` (one sentence)
 
-### 5B — Paragraph sub-agent (run for Para1, Para2, Para3)
+### 5B - Paragraph sub-agent (run for Para1, Para2, Para3)
 
 For each paragraph N (1, 2, 3), spawn a sub-agent with this prompt:
 
 ```
 You are a cover letter paragraph writer. Write ONE body paragraph for a cover letter.
-Follow every rule exactly. Output ONLY the labelled paragraph — no other text.
+Follow every rule exactly. Output ONLY the labelled paragraph - no other text.
 
 === JOB TARGET ===
 Company: [company]
@@ -406,28 +406,28 @@ Role: [job_title]
 - Company hook: [company_hook]
 - Intended contribution: [intended_contribution]
 
-=== REQUIRED KEYWORDS — weave in where the story genuinely supports them ===
-[keywords.required — max 12 items]
+=== REQUIRED KEYWORDS - weave in where the story genuinely supports them ===
+[keywords.required - max 12 items]
 
-=== STORY FACTS — use only these facts, do not invent others ===
-[facts for selected story N — bullet list]
+=== STORY FACTS - use only these facts, do not invent others ===
+[facts for selected story N - bullet list]
 
 === DO NOT SAY ===
-[do_not_say for selected story N — bullet list]
+[do_not_say for selected story N - bullet list]
 
-=== PARAGRAPH STRUCTURE — follow this spine in order ===
+=== PARAGRAPH STRUCTURE - follow this spine in order ===
 1. Opening statement: one sentence establishing a skill, approach, or perspective.
    FORBIDDEN opener patterns: "the most useful/important X I built/did", "some of the
    most [superlative] work I did", any sentence that opens by judging the significance
    of your own past work.
-   PREFERRED patterns: "My approach to X…", "My [skill] in X comes from…",
-   "Building [thing] taught me…", "At [company], the challenge was…",
-   "The principle that shaped this work was…"
+   PREFERRED patterns: "My approach to X...", "My [skill] in X comes from...",
+   "Building [thing] taught me...", "At [company], the challenge was...",
+   "The principle that shaped this work was..."
    Para1 MUST open: "Firstly, ..."
    Para2 MUST open: "Secondly, ..."
    Para3 MUST open: "Lastly, ..."
-2. Context: 1–2 sentences — what was the situation, what problem existed.
-3. Actions: specifically what you did — name the tool, method, or collaborator.
+2. Context: 1-2 sentences - what was the situation, what problem existed.
+3. Actions: specifically what you did - name the tool, method, or collaborator.
 4. Reasoning: why you made key decisions.
 5. Learning / impact: what changed or was produced.
 6. Link to company: one sentence connecting this story to why it matters for THIS
@@ -436,7 +436,7 @@ Role: [job_title]
 === STYLE RULES ===
 [insert style rules verbatim from Style rules reference above]
 
-=== OUTPUT FORMAT — output ONLY this, no preamble, no notes ===
+=== OUTPUT FORMAT - output ONLY this, no preamble, no notes ===
 [PARA[N]]
 <paragraph text>
 ```
@@ -444,7 +444,7 @@ Role: [job_title]
 **Expected output schema:** string starting with `[PARA1]`, `[PARA2]`, or `[PARA3]`
 on its own line, followed by non-empty paragraph text. Apply retry wrapper.
 
-### 5C — Assemble draft
+### 5C - Assemble draft
 
 After all four sub-agents complete, extract each labelled section and assemble:
 ```json
@@ -462,10 +462,10 @@ failed sub-agent (not all four). Update checkpoint with draft, set `"step_comple
 
 ---
 
-## Step 6 — Quality gate (auto-heal)
+## Step 6 - Quality gate (auto-heal)
 
 **Purpose:** catch and fix style violations before human review. No LLM needed for
-most rules — apply as deterministic text transforms.
+most rules - apply as deterministic text transforms.
 
 For each section in `draft` (INTRO, PARA1, PARA2, PARA3, CONCLUSION), apply each
 check in order. Track all violations.
@@ -474,12 +474,12 @@ check in order. Track all violations.
 
 | Check | Detection | Auto-fix |
 |---|---|---|
-| Forbidden words | Case-insensitive match against forbidden words list | Flag for rewrite (cannot reliably auto-fix meaning — flag for human or targeted LLM rewrite) |
-| Em-dash / en-dash | `—` or `–` in text | Split sentence at dash; join with `. ` where natural |
+| Forbidden words | Case-insensitive match against forbidden words list | Flag for rewrite (cannot reliably auto-fix meaning - flag for human or targeted LLM rewrite) |
+| Em-dash / en-dash | `-` or `-` in text | Split sentence at dash; join with `. ` where natural |
 | Semicolons | `;` in text | Replace with `. ` |
 | Colon in body | `:` not in a ratio or time context | Rewrite clause: drop colon and restructure if simple; flag if complex |
 | Sentence > 40 words | Word count per sentence | Flag the sentence for human or LLM split |
-| "I am writing to apply" anywhere | Exact phrase match | Flag — cannot auto-fix without changing meaning |
+| "I am writing to apply" anywhere | Exact phrase match | Flag - cannot auto-fix without changing meaning |
 | Comma-separated list of 3+ items | `(.+), (.+) and (.+)` | Flag for manual rewrite |
 | Third-person references to Branson | `Branson [verb]` | Replace with `I [verb]` |
 
@@ -526,7 +526,7 @@ Apply retry wrapper. Merge fixed sections back into draft.
 Set `"clean": true` if no violations remain after fixes.
 Print a compact summary:
 ```
-Quality gate: [N] issues found → [N] auto-fixed, [N] rewritten. All clear.
+Quality gate: [N] issues found -> [N] auto-fixed, [N] rewritten. All clear.
 ```
 
 Update checkpoint with `validation_report` and validated draft (replace `draft` with
@@ -534,34 +534,34 @@ the post-gate version). Set `"step_completed": 6`.
 
 ---
 
-## Step 7 — Humanisation pass
+## Step 7 - Humanisation pass
 
 **Purpose:** improve prose quality. Process one section at a time to stay focused.
 
 Work through INTRO, PARA1, PARA2, PARA3, CONCLUSION in order. For each, apply these
 rules and track changes:
 
-1. **Remove repetition** — if the same noun or phrase appears within 3 sentences of
+1. **Remove repetition** - if the same noun or phrase appears within 3 sentences of
    itself in the same section, rephrase one occurrence.
-2. **Remove throat-clearing openers** — delete or rephrase: "It is worth noting that",
+2. **Remove throat-clearing openers** - delete or rephrase: "It is worth noting that",
    "I would like to highlight", "I am pleased to say", "As such", "Thus", "Hence",
    "Furthermore", "Moreover" when they open a sentence.
-3. **Vary paragraph openers** — if any two adjacent body paragraphs both start with "I",
+3. **Vary paragraph openers** - if any two adjacent body paragraphs both start with "I",
    rephrase one to open with an action phrase, a context phrase, or a time reference.
-4. **Natural connectives** — replace "In addition," or "Furthermore," with "Alongside
+4. **Natural connectives** - replace "In addition," or "Furthermore," with "Alongside
    this," or just start a new sentence. Replace "Moreover," with "On top of this," or
    remove entirely.
-5. **Self-evaluation adjectives** — if any survived the quality gate, remove here.
+5. **Self-evaluation adjectives** - if any survived the quality gate, remove here.
 
 Apply these rules directly as the orchestrator (no sub-agent for this step). These are
 deterministic or near-deterministic transforms.
 
 For each section, output:
 ```
-[INTRO — 2 changes]
+[INTRO - 2 changes]
 <revised text>
 
-[PARA1 — no changes]
+[PARA1 - no changes]
 <original text>
 ```
 
@@ -570,14 +570,14 @@ Build `humanised` dict. Update checkpoint: add `"humanised": {...}`, set
 
 ---
 
-## Step 8 — Preview and approval loop
+## Step 8 - Preview and approval loop
 
 Display the full letter:
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-COVER LETTER PREVIEW — [company] | [job_title]
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-------------------------------------------------------------
+COVER LETTER PREVIEW - [company] | [job_title]
+-------------------------------------------------------------
 
 [name]
 [address_line1]
@@ -586,7 +586,7 @@ COVER LETTER PREVIEW — [company] | [job_title]
 [email]
 
 [company_name]
-[company_address — omit line if blank]
+[company_address - omit line if blank]
 
 [date]
 
@@ -605,16 +605,16 @@ Dear Hiring Manager,
 Yours Faithfully,
 [name]
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-------------------------------------------------------------
 [A]pprove  |  [F]eedback: describe what to change and where
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-------------------------------------------------------------
 ```
 
 ### Approval
 
 If `A`: proceed to Step 9.
 
-### Feedback — targeted refinement
+### Feedback - targeted refinement
 
 If user provides feedback:
 
@@ -634,7 +634,7 @@ If user provides feedback:
    [user feedback]
 
    === STORY FACTS (if a body para) ===
-   [facts for that paragraph's story — only if PARA1/2/3]
+   [facts for that paragraph's story - only if PARA1/2/3]
 
    === STYLE RULES ===
    [insert style rules verbatim]
@@ -656,7 +656,7 @@ If user provides feedback:
 
 7. **Maximum 3 refinement cycles.** After the 3rd cycle:
    ```
-   Maximum refinement cycles reached — proceeding with the current draft.
+   Maximum refinement cycles reached - proceeding with the current draft.
    ```
    Proceed to Step 9 automatically.
 
@@ -664,7 +664,7 @@ Update checkpoint: set `"step_completed": 8`.
 
 ---
 
-## Step 9 — Render DOCX → PDF → 1-page check → DB
+## Step 9 - Render DOCX -> PDF -> 1-page check -> DB
 
 ### 9a. Build the render payload
 
@@ -782,7 +782,7 @@ print('DB updated: cover_letter_path set')
 
 On DB failure: print a warning and continue. The files already exist on disk.
 ```
-⚠ DB update failed: [error]. Files are saved — update DB manually if needed.
+[!] DB update failed: [error]. Files are saved - update DB manually if needed.
   INSERT: job_id=[job_id], cover_letter_path=[cl_pdf_path]
 ```
 
@@ -791,14 +791,14 @@ On DB failure: print a warning and continue. The files already exist on disk.
 Update checkpoint: `"cl_docx_path"`, `"cl_pdf_path"`, `"step_completed": 9`.
 
 ```
-✓ Cover letter generated — [company] | [job_title]
+[x] Cover letter generated - [company] | [job_title]
   DOCX: [cl_docx_path]
   PDF:  [cl_pdf_path]
 ```
 
 ---
 
-## Step 10 — Retrospective + past-errors memory
+## Step 10 - Retrospective + past-errors memory
 
 **Purpose:** capture what worked for future story scoring.
 
@@ -849,7 +849,7 @@ Delete the temporary files:
 - `.cv-cl-checkpoint.json` (clear for next run)
 - `.cv-cover-letter-tmp.json`
 
-Do NOT delete `.cv-cl-improvement-log.jsonl` — this persists across all runs.
+Do NOT delete `.cv-cl-improvement-log.jsonl` - this persists across all runs.
 
 ---
 

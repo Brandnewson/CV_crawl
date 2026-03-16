@@ -1,4 +1,4 @@
-# /cv-harvest — Personal CV Intelligence Pipeline
+# /cv-harvest - Personal CV Intelligence Pipeline
 
 Orchestrates four parallel sub-agents across your Code folder, GitHub profile,
 and GraduateJobHunting docs, then synthesises per-project CV entries (title,
@@ -16,12 +16,12 @@ description, bullet points) tuned to the roles you are actually applying for.
 
 ---
 
-## ORCHESTRATOR — run this sequence
+## ORCHESTRATOR - run this sequence
 
-### Step 0 — Discover projects list (run first, sequentially)
+### Step 0 - Discover projects list (run first, sequentially)
 
 Run the following to get the list of top-level project folders in your Code directory.
-Store this list — all later agents need it.
+Store this list - all later agents need it.
 
 ```powershell
 Get-ChildItem "C:\Code\CV_crawl" -Directory | Select-Object -ExpandProperty Name
@@ -29,11 +29,11 @@ Get-ChildItem "C:\Code\CV_crawl" -Directory | Select-Object -ExpandProperty Name
 
 ---
 
-### Step 1 — Fire four sub-agents in PARALLEL using Task()
+### Step 1 - Fire four sub-agents in PARALLEL using Task()
 
 ---
 
-#### TASK 1 — Code Analyst
+#### TASK 1 - Code Analyst
 
 ```
 You are the Code Analyst sub-agent.
@@ -47,13 +47,13 @@ For EACH subdirectory (treat each as a separate project):
    Get-ChildItem "C:\Code\CV_crawl\<project>" -Recurse -Depth 2
 
 2. Detect the tech stack by checking for:
-   - package.json                              → Node/TypeScript/JavaScript
-   - pyproject.toml / requirements.txt         → Python
-   - Cargo.toml                                → Rust
-   - go.mod                                    → Go
-   - *.csproj / *.sln                          → C# / .NET
-   - docker-compose.yml / Dockerfile           → containerised
-   - .github/workflows/                        → CI/CD pipelines
+   - package.json                              -> Node/TypeScript/JavaScript
+   - pyproject.toml / requirements.txt         -> Python
+   - Cargo.toml                                -> Rust
+   - go.mod                                    -> Go
+   - *.csproj / *.sln                          -> C# / .NET
+   - docker-compose.yml / Dockerfile           -> containerised
+   - .github/workflows/                        -> CI/CD pipelines
    - folders named: agents/, pipelines/, models/, api/, infra/, workers/
 
 3. If a README.md or README.rst exists, read its first 100 lines.
@@ -87,7 +87,7 @@ Return your findings as:
 
 ---
 
-#### TASK 2 — GitHub Analyst
+#### TASK 2 - GitHub Analyst
 
 ```
 You are the GitHub Analyst sub-agent.
@@ -95,18 +95,18 @@ You are the GitHub Analyst sub-agent.
 Fetch public activity for GitHub user: Brandnewson
 
 1. Fetch recent repositories:
-   curl -s "https://api.github.com/users/Brandnewson/repos?sort=updated&per_page=30"
+   curl -s "https://api.github.com/users/Brandnewson/repos-sort=updated&per_page=30"
 
    For each repo extract: name, description, language, topics, updated_at,
    stargazers_count, forks_count.
 
 2. For repositories updated in the last 18 months, fetch the commit log:
-   curl -s "https://api.github.com/repos/Brandnewson/<repo>/commits?per_page=30"
+   curl -s "https://api.github.com/repos/Brandnewson/<repo>/commits-per_page=30"
 
    Extract commit messages to understand what was being built/changed.
 
 3. Identify repos that overlap with the Code folder projects by name similarity.
-   Flag these as local_match="yes" — they have double evidence.
+   Flag these as local_match="yes" - they have double evidence.
 
 4. Fetch README content for the most active repos:
    curl -s "https://api.github.com/repos/Brandnewson/<repo>/readme" | python3 -c "
@@ -133,13 +133,13 @@ Return findings as:
 
 ---
 
-#### TASK 3 — Job Target Analyst
+#### TASK 3 - Job Target Analyst
 
 ```
 You are the Job Target Analyst sub-agent.
 
 Read the job applications folder to extract what roles, skills, and keywords
-are being targeted — so CV bullets can be tuned to match.
+are being targeted - so CV bullets can be tuned to match.
 
 Base path: C:\Users\brans\OneDrive - University of Leeds\GraduateJobHunting
 
@@ -199,7 +199,7 @@ Return findings as:
 
 ---
 
-#### TASK 4 — Git History Analyst
+#### TASK 4 - Git History Analyst
 
 ```
 You are the Git History Analyst sub-agent.
@@ -223,7 +223,7 @@ Return findings as:
 
 <git_intelligence>
   <project name="...">
-    <commit_themes>describe the arc of work — not just a list of commits</commit_themes>
+    <commit_themes>describe the arc of work - not just a list of commits</commit_themes>
     <key_milestones>any tags, major merges, architectural shifts</key_milestones>
     <velocity>approx number of commits in last 6 months</velocity>
   </project>
@@ -232,7 +232,7 @@ Return findings as:
 
 ---
 
-### Step 2 — CV Writer sub-agent (after all four Tasks return)
+### Step 2 - CV Writer sub-agent (after all four Tasks return)
 
 Spawn the CV Writer, injecting all four intelligence blocks:
 
@@ -255,7 +255,7 @@ FOR EACH PROJECT produce a structured entry:
 
 <project_entry name="...">
 
-  <title>Short project title, 3–6 words, human-readable</title>
+  <title>Short project title, 3-6 words, human-readable</title>
 
   <description>
     One sentence (max 25 words) describing what the project is and does.
@@ -267,16 +267,16 @@ FOR EACH PROJECT produce a structured entry:
       <text>
         Past-tense verb + what + how + tech stack + impact or scale.
         Mirror high-priority keywords from job_intelligence where accurate.
-        If the project involves LLMs, agents, or AI pipelines — lead with that.
+        If the project involves LLMs, agents, or AI pipelines - lead with that.
         Formula: [Verb] + [what was built] + [using X technology] + [achieving Y result]
       </text>
       <keywords_matched>which high_priority_keywords from job_intelligence appear here</keywords_matched>
-      <confidence>high|medium|low — based on evidence quality</confidence>
+      <confidence>high|medium|low - based on evidence quality</confidence>
     </bullet>
-    <!-- 2–4 bullets per project. Prioritise the most differentiated work. -->
+    <!-- 2-4 bullets per project. Prioritise the most differentiated work. -->
   </bullets>
 
-  <tech_tags>comma-separated list of all technologies — for skills section of CV</tech_tags>
+  <tech_tags>comma-separated list of all technologies - for skills section of CV</tech_tags>
 
   <standout_factor>
     One sentence: what makes this project distinctive to a technical recruiter.
@@ -292,32 +292,32 @@ Wrap all entries in:
 
 ---
 
-### Step 3 — Render and save output
+### Step 3 - Render and save output
 
 Parse `<cv_output>` and print to terminal:
 
 ```
-╔══════════════════════════════════════════════════════════════╗
-║              CV HARVEST — github.com/Brandnewson             ║
-╚══════════════════════════════════════════════════════════════╝
++--------------------------------------------------------------+
+|              CV HARVEST - github.com/Brandnewson             |
++--------------------------------------------------------------+
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+--------------------------------------------------------------
  PROJECT: [Title]
  [One-sentence description]
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  • [bullet 1]
-  • [bullet 2]
-  • [bullet 3]
+--------------------------------------------------------------
+  - [bullet 1]
+  - [bullet 2]
+  - [bullet 3]
 
-  🏷  Tech: [tech_tags]
-  ⭐  [standout_factor]
+  Tag  Tech: [tech_tags]
+  Star  [standout_factor]
 
 [...repeat for each project...]
 
-────────────────────────────────────────────────────────────────
-📋 Targeting: [list role titles from job_intelligence]
-🔑 Top keywords matched: [top 5 high_priority_keywords used across bullets]
-────────────────────────────────────────────────────────────────
+----------------------------------------------------------------
+Summary Targeting: [list role titles from job_intelligence]
+Key Top keywords matched: [top 5 high_priority_keywords used across bullets]
+----------------------------------------------------------------
 ```
 
 Write full output (formatted bullets + raw XML) to:
@@ -325,7 +325,7 @@ Write full output (formatted bullets + raw XML) to:
 
 ---
 
-### Step 3b — Serialise experience store to JSON
+### Step 3b - Serialise experience store to JSON
 
 After writing the output file, produce a structured JSON experience store.
 
@@ -342,32 +342,32 @@ output_text = Path(r"C:\Code\CV_crawl\.cv-harvest-output.md").read_text(encoding
 
 # Helper: check if any bullet has a numeric metric (%, LOC, ms, req/s, x, etc.)
 def has_metric(text):
-    return bool(re.search(r'\d+\s*(%|loc|ms|req|x\b|×|k\b|mb|gb|s\b)', text, re.IGNORECASE))
+    return bool(re.search(r'\d+\s*(%|loc|ms|req|x\b|x|k\b|mb|gb|s\b)', text, re.IGNORECASE))
 
 projects = []
 # Parse each <project_entry name="...">...</project_entry> block from cv_output
-for m in re.finditer(r'<project_entry name="([^"]+)">(.*?)</project_entry>', output_text, re.DOTALL):
+for m in re.finditer(r'<project_entry name="([^"]+)">(.*-)</project_entry>', output_text, re.DOTALL):
     name = m.group(1)
     block = m.group(2)
 
-    title_m = re.search(r'<title>(.*?)</title>', block, re.DOTALL)
-    desc_m  = re.search(r'<description>(.*?)</description>', block, re.DOTALL)
-    tags_m  = re.search(r'<tech_tags>(.*?)</tech_tags>', block, re.DOTALL)
-    stand_m = re.search(r'<standout_factor>(.*?)</standout_factor>', block, re.DOTALL)
+    title_m = re.search(r'<title>(.*-)</title>', block, re.DOTALL)
+    desc_m  = re.search(r'<description>(.*-)</description>', block, re.DOTALL)
+    tags_m  = re.search(r'<tech_tags>(.*-)</tech_tags>', block, re.DOTALL)
+    stand_m = re.search(r'<standout_factor>(.*-)</standout_factor>', block, re.DOTALL)
 
     bullets = []
-    for bm in re.finditer(r'<bullet[^>]*>(.*?)</bullet>', block, re.DOTALL):
+    for bm in re.finditer(r'<bullet[^>]*>(.*-)</bullet>', block, re.DOTALL):
         bblock = bm.group(1)
-        text_m  = re.search(r'<text>(.*?)</text>', bblock, re.DOTALL)
-        conf_m  = re.search(r'<confidence>(.*?)</confidence>', bblock, re.DOTALL)
-        kw_m    = re.search(r'<keywords_matched>(.*?)</keywords_matched>', bblock, re.DOTALL)
+        text_m  = re.search(r'<text>(.*-)</text>', bblock, re.DOTALL)
+        conf_m  = re.search(r'<confidence>(.*-)</confidence>', bblock, re.DOTALL)
+        kw_m    = re.search(r'<keywords_matched>(.*-)</keywords_matched>', bblock, re.DOTALL)
         btext = text_m.group(1).strip() if text_m else ""
         conf  = conf_m.group(1).strip() if conf_m else "medium"
         kws   = [k.strip() for k in kw_m.group(1).split(",")] if kw_m else []
         scale_known = has_metric(btext)
         gap_q = None
         if conf in ("medium", "low") and not scale_known:
-            gap_q = f"Can you quantify the impact or scale of: \"{btext[:80]}...\"? (e.g. % improvement, number of users, lines of code, runtime reduction)"
+            gap_q = f"Can you quantify the impact or scale of: \"{btext[:80]}...\"- (e.g. % improvement, number of users, lines of code, runtime reduction)"
         bullets.append({
             "text": btext,
             "confidence": conf,
@@ -394,7 +394,7 @@ store = {
 Path(r"C:\Code\CV_crawl\.cv-harvest-store.json").write_text(
     json.dumps(store, indent=2, ensure_ascii=False), encoding="utf-8"
 )
-print(f"Wrote .cv-harvest-store.json — {len(projects)} projects, "
+print(f"Wrote .cv-harvest-store.json - {len(projects)} projects, "
       f"{sum(len(p['bullets']) for p in projects)} bullets")
 ```
 
