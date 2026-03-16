@@ -130,6 +130,45 @@
         "exact ECU model"
       ]
     },
+    "fyp_marl_f1": {
+      "label": "fyp_marl_f1",
+      "title": "Final Year Project — F1 Multi-Agent RL Simulator",
+      "themes": [
+        "reinforcement-learning",
+        "multi-agent-systems",
+        "simulation-engineering",
+        "stochastic-modelling",
+        "real-world-data-grounding",
+        "pluggable-architecture",
+        "autonomous-experimentation",
+        "individual-initiative"
+      ],
+      "keyword_heuristics": [
+        "reinforcement learning", "MARL", "multi-agent", "MADDPG", "PPO", "DQN",
+        "stochastic", "simulation", "policy", "non-stationarity", "competitive",
+        "autonomous", "ML", "machine learning", "high-throughput", "telemetry",
+        "modular", "architecture", "Python", "research", "episodic"
+      ],
+      "facts": [
+        "Undergraduate Computer Science final year project",
+        "Built a 100Hz F1 race simulator from scratch in Python — 100 full races complete in ~4.56 seconds (21.9 races/sec), providing the sample throughput required for RL training loops",
+        "Designed a pluggable multi-agent policy architecture (BaseAgent in src/agents.py) where any RL algorithm (DQN, PPO, MADDPG) can be swapped in via a single callable interface: (driver, race_state) → (RiskLevel, bool)",
+        "Modelled stochastic race dynamics: incident probability as a function of corner difficulty × risk multiplier, and overtake success as an independent stochastic process — making the environment non-trivially hard for deterministic policies",
+        "Grounded simulation parameters in real F1 telemetry: extracted overtake probability distributions by track position from 2023 Belgian Grand Prix data using FastF1, then mapped them to physical track geometry via GPS centreline processing (KML → Cartesian coordinates)",
+        "Implemented three baseline agent archetypes — Conservative, Aggressive, and Adaptive — with measurable outcome differences: Aggressive won 82/100 races vs. Adaptive's 18/100 in batch testing",
+        "Identified the core MARL challenge: the Adaptive agent's strategy is conditioned on the opponent's gap, creating non-stationary opponent behaviour — exactly the problem algorithms like MADDPG are designed to address",
+        "Built a modular, config-driven simulator (main.py, config.json) separating track loading, race state initialisation, and simulation execution — enabling systematic ablation studies",
+        "Ran an autonomous ML research pipeline (autoresearch) based on a custom GPT pretraining loop with MuonAdamW optimiser, logging experiments to results.tsv with val_bpb as the key metric",
+        "At 21.9 races/sec, a training run of 1 million episodes would complete in ~12.7 hours — practically feasible for overnight RL training",
+        "Targeted MARL algorithm comparison (DQN, PPO, MADDPG) as the stated MVP objective for benchmarking against the stochastic racing environment",
+        "Simulator is designed to be incrementally extended — planned complexity additions include tyre degradation modelling and pit stop strategy, allowing direct comparison of how different RL algorithms adapt as the environment becomes more complex"
+      ],
+      "do_not_say": [
+        "claim the RL algorithms were fully trained or benchmarked unless you know the outcome",
+        "specific loss figures or reward curves beyond what is listed above",
+        "imply the autoresearch pipeline relates to the F1 simulator — it is a separate GPT pretraining experiment"
+      ]
+    },
     "travelindr_mvp": {
       "label": "travelindr_mvp",
       "title": "Travelindr MVP / A-B Testing",

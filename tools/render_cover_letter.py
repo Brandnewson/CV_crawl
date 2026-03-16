@@ -40,6 +40,30 @@ OUTPUT_DIR = Path(
     r"C:\Users\brans\OneDrive - University of Leeds\GraduateJobHunting\claude-cv-outputs"
 )
 
+LAYOUT_PRESETS = {
+    "default": {
+        "margin_cm": 2.5,
+        "line_spacing": 1.15,
+        "header_space_after": 2,
+        "body_space_after": 8,
+        "signoff_gap": 20,
+    },
+    "tight": {
+        "margin_cm": 2.2,
+        "line_spacing": 1.12,
+        "header_space_after": 1,
+        "body_space_after": 6,
+        "signoff_gap": 16,
+    },
+    "tighter": {
+        "margin_cm": 2.0,
+        "line_spacing": 1.10,
+        "header_space_after": 1,
+        "body_space_after": 5,
+        "signoff_gap": 14,
+    },
+}
+
 
 def _set_font(run, name: str, size_pt: float, bold: bool = False) -> None:
     from docx.shared import Pt
@@ -64,66 +88,84 @@ def _add_paragraph(doc, text: str, font_name: str = "Garamond", font_size: float
 def render(data: dict) -> Path:
     from docx import Document
     from docx.shared import Cm, Pt
-    from docx.enum.text import WD_LINE_SPACING
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
 
     doc = Document()
+    preset_name = data.get("layout_preset", "default")
+    preset = LAYOUT_PRESETS.get(preset_name, LAYOUT_PRESETS["default"])
 
-    # ── Page margins: 2.5 cm all sides ──────────────────────────────────────
+    # ── Page margins ─────────────────────────────────────────────────────────
     for section in doc.sections:
-        section.top_margin    = Cm(2.5)
-        section.bottom_margin = Cm(2.5)
-        section.left_margin   = Cm(2.5)
-        section.right_margin  = Cm(2.5)
+        section.top_margin = Cm(preset["margin_cm"])
+        section.bottom_margin = Cm(preset["margin_cm"])
+        section.left_margin = Cm(preset["margin_cm"])
+        section.right_margin = Cm(preset["margin_cm"])
 
     # ── Helper: styled paragraph ─────────────────────────────────────────────
     def para(text: str, size: float = 11, bold: bool = False,
-             space_before: float = 0, space_after: float = 5) -> None:
+             space_before: float = 0, space_after: float = 5,
+             align: str = "left") -> None:
         p = doc.add_paragraph()
         p.paragraph_format.space_before = Pt(space_before)
-        p.paragraph_format.space_after  = Pt(space_after)
-        p.paragraph_format.line_spacing = 1.15
+        p.paragraph_format.space_after = Pt(space_after)
+        p.paragraph_format.line_spacing = preset["line_spacing"]
+
+        if align == "right":
+            p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        else:
+            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
         r = p.add_run(text)
-        r.font.name  = "Garamond"
-        r.font.size  = Pt(size)
-        r.font.bold  = bold
+        r.font.name = "Garamond"
+        r.font.size = Pt(size)
+        r.font.bold = bold
 
-    # ── Sender name ──────────────────────────────────────────────────────────
-    para(data.get("name", "Branson Tay"), size=12, bold=True, space_after=2)
+    # ── Sender details (name left, contact lines right) ───────────────────────
+    para(
+        data.get("name", "Branson Tay"),
+        size=12,
+        bold=True,
+        space_after=preset["header_space_after"],
+        align="left",
+    )
 
-    # ── Sender address lines ─────────────────────────────────────────────────
     for field in ("address_line1", "address_line2", "address_line3"):
         val = data.get(field, "")
         if val:
-            para(val, space_after=2)
+            para(val, space_after=preset["header_space_after"], align="right")
 
     email = data.get("email", "")
     if email:
-        para(email, space_after=8)
+        para(email, space_after=preset["body_space_after"], align="right")
 
-    # ── Company name + address (optional) ───────────────────────────────────
+    # ── Company block onward (left aligned) ──────────────────────────────────
     company_name = data.get("company_name", "")
     if company_name:
-        para(company_name, space_after=2)
+        para(company_name, space_after=preset["header_space_after"], align="left")
 
     company_address = data.get("company_address", "")
     if company_address:
-        para(company_address, space_after=2)
+        para(company_address, space_after=preset["header_space_after"], align="left")
 
     # ── Date ─────────────────────────────────────────────────────────────────
-    para(data.get("date", datetime.today().strftime("%d %B %Y").lstrip("0")), space_after=10)
+    para(
+        data.get("date", datetime.today().strftime("%d %B %Y").lstrip("0")),
+        space_after=10,
+        align="left",
+    )
 
     # ── Salutation ───────────────────────────────────────────────────────────
-    para(data.get("salutation", "Dear Hiring Manager,"), space_after=8)
+    para(data.get("salutation", "Dear Hiring Manager,"), space_after=8, align="left")
 
     # ── Body paragraphs ──────────────────────────────────────────────────────
     for key in ("intro", "para1", "para2", "para3", "conclusion"):
         text = data.get(key, "")
         if text:
-            para(text, space_before=0, space_after=8)
+            para(text, space_before=0, space_after=preset["body_space_after"], align="left")
 
     # ── Sign-off ─────────────────────────────────────────────────────────────
-    para("Yours Faithfully,", space_before=4, space_after=20)
-    para(data.get("name", "Branson Tay"), size=11, bold=False, space_after=0)
+    para("Yours Faithfully,", space_before=4, space_after=preset["signoff_gap"], align="left")
+    para(data.get("name", "Branson Tay"), size=11, bold=False, space_after=0, align="left")
 
     # ── Output path ──────────────────────────────────────────────────────────
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
