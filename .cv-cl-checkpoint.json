@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "step_completed": 1,
+  "job_id": "1767",
+  "company": "Procore Technologies",
+  "job_title": "Forward Deployed Engineer (Datagrid)",
+  "keywords": {
+    "required": ["LLM-powered agentic workflows", "AI Agents", "Python", "C++", "TypeScript/JavaScript", "Gen AI", "Machine Learning", "LLMs", "end-to-end workflows", "customer-facing", "onsite deployments", "production deployment"],
+    "nice_to_have": ["AI strategy", "Customer Success", "ML Evaluation", "ML Training", "Mathematics", "Physics", "real-world solutions", "communicating complex technology"]
+  },
+  "profile": {},
+  "company_address": "",
+  "story_scores": {},
+  "selected_stories": [],
+  "draft": {},
+  "validation_report": {},
+  "humanised": {},
+  "refinement_cycle": 0,
+  "feedback_history": [],
+  "cl_docx_path": "",
+  "cl_pdf_path": ""
+}
