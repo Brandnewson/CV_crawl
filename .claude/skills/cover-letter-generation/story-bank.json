@@ -1,0 +1,169 @@
+{
+  "stories": {
+    "jaguar_matlab_tyre": {
+      "label": "jaguar_matlab_tyre",
+      "title": "Jaguar MATLAB Tyre Tool",
+      "themes": [
+        "ambiguity",
+        "engineering-fundamentals",
+        "race-weekend-pressure",
+        "tool-building",
+        "multidisciplinary",
+        "performance",
+        "individual-initiative"
+      ],
+      "keyword_heuristics": [
+        "high-pressure", "technical", "engineering", "simulation",
+        "telemetry", "performance", "matlab", "motorsport", "tool"
+      ],
+      "facts": [
+        "Formula E Season 11 at Jaguar TCS Racing",
+        "New tyres and four-wheel drive in attack mode introduced significant changes",
+        "Team needed failsafe contingencies and wanted to unlock tyre performance",
+        "Branson proposed and developed an in-house MATLAB tool on the race weekend itself",
+        "Tool combined mechanical engineering (diploma background) with computer science skills",
+        "Tool quantified the friction-brake energy required to raise tyre core temperatures without compromising battery strategy",
+        "Validated the tool against race telemetry",
+        "Presented findings to engineers — findings supported strategy decisions",
+        "Contributed to holding off Porsche for P2 and securing a win at Shanghai Race 2",
+        "Tool still in use at Jaguar today"
+      ],
+      "do_not_say": [
+        "I was passionate about",
+        "I leveraged my skills",
+        "specific lap times or energy figures you do not know"
+      ]
+    },
+    "jaguar_alkamel": {
+      "label": "jaguar_alkamel",
+      "title": "Jaguar Alkamel Timing Feed Converter",
+      "themes": [
+        "cross-functional-collaboration",
+        "ownership",
+        "software-engineering",
+        "data-pipeline",
+        "scalability",
+        "stakeholder-management",
+        "Python"
+      ],
+      "keyword_heuristics": [
+        "cross-functional", "stakeholder", "collaboration", "customer",
+        "teams", "business", "python", "data pipeline", "software", "backend", "OOP"
+      ],
+      "facts": [
+        "Jaguar TCS Racing internship; compact team — responsibilities overlapped",
+        "Developed a Python-based data pipeline converting raw Alkamel Timing Feed data from a noSQL database into telemetry channels",
+        "Sought feedback from Vehicle Performance Group to keep channels relevant",
+        "Collaborated with software engineers on CI/CD architecture design",
+        "Sought code reviews with senior engineers for OOP scalability (design patterns, modularity, extensive error handling)",
+        "Aligned with race strategists to ensure outputs had direct race impact",
+        "Started as a single Python file; grew into a fully functioning application",
+        "Application still powering performance at Jaguar today"
+      ],
+      "do_not_say": [
+        "specific API endpoints",
+        "database product names beyond 'noSQL'",
+        "any performance metrics you do not know"
+      ]
+    },
+    "jaguar_youtube_cnn": {
+      "label": "jaguar_youtube_cnn",
+      "title": "Jaguar YouTube Clip CNN Extension",
+      "themes": [
+        "self-directed-learning",
+        "initiative",
+        "machine-learning",
+        "curiosity",
+        "cross-departmental",
+        "ownership",
+        "competitor-intelligence"
+      ],
+      "keyword_heuristics": [
+        "ML", "machine learning", "self-starter", "initiative", "curiosity",
+        "CNN", "computer vision", "AI", "self-directed", "ownership"
+      ],
+      "facts": [
+        "Jaguar internship; regularly spoke with colleagues across departments",
+        "Discovered an unused internal repository that identified onboard clips from YouTube livestreams",
+        "Saw potential to repurpose and extend the tool",
+        "Extended it to recognise competitor dashboard footage showing key data such as tyre pressures — needed by the tyre department",
+        "Had no prior machine learning experience at the time",
+        "Studied the fundamentals of the existing CNN classifier independently",
+        "Sourced own training dataset",
+        "Innovation significantly eased manual burden — freed engineers to focus on performance-critical tasks",
+        "Demonstrates ownership and turning curiosity into tangible impact"
+      ],
+      "do_not_say": [
+        "model accuracy figures",
+        "dataset size",
+        "specific frameworks beyond CNN unless you know them"
+      ]
+    },
+    "gryphon_gps": {
+      "label": "gryphon_gps",
+      "title": "Gryphon Racing GPS Sensor Bridge",
+      "themes": [
+        "cross-team-communication",
+        "stakeholder-alignment",
+        "data-architecture",
+        "systems-thinking",
+        "motorsport",
+        "collaboration"
+      ],
+      "keyword_heuristics": [
+        "data pipeline", "architecture", "sensors", "systems", "communication",
+        "motorsport", "cross-team", "stakeholder", "collaboration", "hardware"
+      ],
+      "facts": [
+        "Leeds Gryphon Racing (university Formula Student team)",
+        "New ECU and data acquisition system introduced a gap: electrics team unsure which sensors to install and what channel strategies to use; vehicle dynamics team struggling to validate design choices",
+        "Branson identified the cross-team disconnect and facilitated a meeting between leads",
+        "Communicated each team's requirements and constraints clearly",
+        "Concluded that GPS sensors and wheel speed sensors were critical for correlating tyre models",
+        "Defined sampling rates, logging strategies, and channel strategies together",
+        "This provided vehicle dynamics team performance metrics in the format they needed",
+        "Turned initial confusion into a key vehicle data architecture decision that will support performance for years"
+      ],
+      "do_not_say": [
+        "specific sensor brands",
+        "car lap times",
+        "exact ECU model"
+      ]
+    },
+    "travelindr_mvp": {
+      "label": "travelindr_mvp",
+      "title": "Travelindr MVP / A-B Testing",
+      "themes": [
+        "product-thinking",
+        "customer-facing",
+        "iterative-development",
+        "entrepreneurship",
+        "agile",
+        "experimentation",
+        "user-research",
+        "leadership"
+      ],
+      "keyword_heuristics": [
+        "product", "customer", "agile", "A/B", "MVP", "user research",
+        "iteration", "forward deployed", "entrepreneurship", "startup",
+        "leadership", "strategy", "investor"
+      ],
+      "facts": [
+        "Co-founder and CEO of Travelindr — a group travel-itinerary generator",
+        "Built in a cross-functional team using Agile ways of working",
+        "Ran focus-group discussions to inform product direction",
+        "Created UI mockups to validate design decisions",
+        "Conducted A/B testing and user interviews to iterate on features",
+        "Set product strategy and direction",
+        "Progressed the product to MVP stage",
+        "Pitched to investors; secured incubation within a multinational company"
+      ],
+      "do_not_say": [
+        "revenue figures",
+        "user counts",
+        "any metric not listed above",
+        "imply Branson wrote production code — the role was executive/product"
+      ]
+    }
+  }
+}

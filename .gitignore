@@ -1,0 +1,42 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local environments
+.env
+.venv/
+venv/
+env/
+.conda/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+
+# Generated CV/output artifacts
+output/
+*.docx
+*.pdf
+
+# Local temporary and cache data
+.cover-letter-render-tmp.json
+.experience-cache.json
+.cv-*-tmp.json
+.cv-*-tmp.txt
+.cv-bullets-*.json
+.cv-harvest-output.md
+.cv-harvest-store.json
+.cv-data-*.json
+.cv-profile.json
+.cv-work-experience.json
+
+# Local Claude settings (machine-specific)
+.claude/settings.local.json
