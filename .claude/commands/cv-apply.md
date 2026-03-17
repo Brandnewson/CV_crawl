@@ -130,13 +130,53 @@ When the user selects an R-number, load that job from `recent_jobs` and proceed 
 as for a new job - all subsequent steps are identical. This allows regenerating or
 refining a CV for a job already in the pipeline.
 
+**Pre-run cleanup**: After the user selects a job, check whether temp files from a
+different job are present. Run:
+
+```python
+import json, os
+from pathlib import Path
+
+checkpoint = Path(r"C:\Code\CV_crawl\.cv-apply-checkpoint.json")
+selected_job_id = SELECTED_JOB_ID  # replace with the actual job_id integer
+to_delete = [
+    r"C:\Code\CV_crawl\.cv-apply-evidence-pack-tmp.json",
+    r"C:\Code\CV_crawl\.cv-apply-slot-plan-tmp.json",
+    r"C:\Code\CV_crawl\.cv-apply-jd-keywords-tmp.json",
+    r"C:\Code\CV_crawl\.cv-apply-project-selections.json",
+    r"C:\Code\CV_crawl\.cv-apply-selections-tmp.json",
+    r"C:\Code\CV_crawl\.cv-apply-meta-tmp.json",
+    r"C:\Code\CV_crawl\.cv-apply-context-tmp.json",
+    r"C:\Code\CV_crawl\.cv-apply-jd-tmp.txt",
+]
+if checkpoint.exists():
+    try:
+        ckpt = json.loads(checkpoint.read_text())
+        if ckpt.get("job_id") != selected_job_id:
+            for f in to_delete:
+                try:
+                    os.remove(f)
+                except FileNotFoundError:
+                    pass
+            print(f"Cleaned up temp files from previous run (job {ckpt.get('job_id')}).")
+    except Exception:
+        pass
+```
+
+(Replace `SELECTED_JOB_ID` with the actual numeric job_id from the user's selection.)
+
 ---
 
 ### Step 1 - Load and clean JD
 
 1. Load the selected job's `description` field from the query results.
-2. Write the raw JD description to `C:\Code\CV_crawl\.cv-apply-jd-tmp.txt`.
-3. Attempt keyword extraction via subprocess:
+2. **JD keyword cache check** — before running extraction, check for a cached file:
+   `C:\Code\CV_crawl\.jd-keywords-cache\{job_id}.json`
+   If it exists and is non-empty, load it as `keywords` and `role_family`, print
+   `Keywords loaded from cache (job {job_id}) — skipping extraction.`, display the
+   keywords to the user, and skip straight to Step 2. Do NOT re-extract.
+3. If no cache hit: write the raw JD description to `C:\Code\CV_crawl\.cv-apply-jd-tmp.txt`.
+4. Attempt keyword extraction via subprocess:
 ```
 uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" python - <<'EOF'
 import sys, json
@@ -160,7 +200,8 @@ EOF
 
 Parse the JSON output (or orchestrator extraction) to get `keywords` and `role_family`.
 
-Write this to `C:\Code\CV_crawl\.cv-apply-jd-keywords-tmp.json`:
+Write this to `C:\Code\CV_crawl\.cv-apply-jd-keywords-tmp.json` **and also** to
+`C:\Code\CV_crawl\.jd-keywords-cache\{job_id}.json` (create the directory if needed):
 
 ```json
 {
@@ -372,7 +413,24 @@ This is a hard gate: paraphrase fallback is not allowed.
 
 ### Step 5 - CV Writer sub-agent
 
-Spawn a CV Writer sub-agent with the following compact context:
+**Before spawning the sub-agent**, extract the three keys the CV Writer needs from the
+slot plan (this avoids sending the full 64KB file into the sub-agent's context):
+
+```python
+import json
+from pathlib import Path
+
+sp = json.loads(Path(r"C:\Code\CV_crawl\.cv-apply-slot-plan-tmp.json").read_text())
+writer_context = {
+    "hidden_projects": sp["hidden_projects"],
+    "header_swaps": sp["header_swaps"],
+    "writer_brief_cards": sp["writer_brief_cards"],
+}
+print(json.dumps(writer_context, indent=2))
+```
+
+Capture the output as `writer_context_json`. Then spawn a CV Writer sub-agent with the
+following compact context, substituting `[WRITER_CONTEXT_JSON]` with the captured output:
 
 ```
 You are a senior technical CV writer for a motorsport/software engineering graduate.
@@ -388,10 +446,7 @@ Required keywords: [keywords.required joined by ", "]
 Nice-to-have: [keywords.nice_to_have joined by ", "]
 
 === SLOT PLAN (MANDATORY SOURCE OF TRUTH) ===
-Use ONLY this data from C:\Code\CV_crawl\.cv-apply-slot-plan-tmp.json:
-- hidden_projects
-- header_swaps
-- writer_brief_cards
+[WRITER_CONTEXT_JSON]
 
 Each writer_brief_card provides:
 - intent_id
@@ -752,6 +807,23 @@ uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline
   DOCX: [out_path]
   PDF:  [pdf_path]
   Keywords covered: [N of M required keywords]
+```
+
+4. **Post-run cleanup** — delete large intermediate artifacts (evidence pack and slot plan
+   are no longer needed; selections and meta are kept for Step 9 cover letter handoff):
+
+```python
+import os
+for f in [
+    r"C:\Code\CV_crawl\.cv-apply-evidence-pack-tmp.json",
+    r"C:\Code\CV_crawl\.cv-apply-slot-plan-tmp.json",
+    r"C:\Code\CV_crawl\.cv-apply-jd-keywords-tmp.json",
+    r"C:\Code\CV_crawl\.cv-apply-jd-tmp.txt",
+]:
+    try:
+        os.remove(f)
+    except FileNotFoundError:
+        pass
 ```
 
 ---

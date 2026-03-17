@@ -38,5 +38,18 @@ output/
 .cv-profile.json
 .cv-work-experience.json
 
+# JD keyword cache (safe to delete; rebuilds on next run)
+.jd-keywords-cache/
+
+# Promoted facts and checkpoint-adjacent files
+.cv-facts-promoted.json
+.cv-apply-project-selections.json
+.cv-apply-checkpoint.json
+.cv-cl-checkpoint.json
+.cv-cl-improvement-log.jsonl
+.cv-cl-past-errors.jsonl
+.cv-fact-patches.jsonl
+.cv-apply-run-metrics.jsonl
+
 # Local Claude settings (machine-specific)
 .claude/settings.local.json

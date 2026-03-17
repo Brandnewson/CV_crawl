@@ -32,7 +32,12 @@
         "I was passionate about",
         "I leveraged my skills",
         "specific lap times or energy figures you do not know"
-      ]
+      ],
+      "work_experience_ref": {
+        "org": "Jaguar TCS Racing",
+        "fact_indices": [3, 12, 14],
+        "note": "Fact 3 (MATLAB tyre/RESS models), fact 12 (energy regen sensitivity analysis tool), fact 14 (battery temperature correlation with simulator)"
+      }
     },
     "jaguar_alkamel": {
       "label": "jaguar_alkamel",
@@ -64,7 +69,12 @@
         "specific API endpoints",
         "database product names beyond 'noSQL'",
         "any performance metrics you do not know"
-      ]
+      ],
+      "work_experience_ref": {
+        "org": "Jaguar TCS Racing",
+        "fact_indices": [0, 1, 16],
+        "note": "Fact 0 (FIA timing feed pipeline), fact 1 (worked within race data pipeline), fact 16 (NoSQL race data → ATLAS channels)"
+      }
     },
     "jaguar_youtube_cnn": {
       "label": "jaguar_youtube_cnn",
@@ -97,7 +107,12 @@
         "model accuracy figures",
         "dataset size",
         "specific frameworks beyond CNN unless you know them"
-      ]
+      ],
+      "work_experience_ref": {
+        "org": "Jaguar TCS Racing",
+        "fact_indices": [4],
+        "note": "Fact 4 (CNN and OpenCV image recognition tooling saving engineers time from manual video review)"
+      }
     },
     "gryphon_gps": {
       "label": "gryphon_gps",
@@ -128,7 +143,8 @@
         "specific sensor brands",
         "car lap times",
         "exact ECU model"
-      ]
+      ],
+      "work_experience_ref": null
     },
     "fyp_marl_f1": {
       "label": "fyp_marl_f1",
@@ -167,7 +183,8 @@
         "claim the RL algorithms were fully trained or benchmarked unless you know the outcome",
         "specific loss figures or reward curves beyond what is listed above",
         "imply the autoresearch pipeline relates to the F1 simulator — it is a separate GPT pretraining experiment"
-      ]
+      ],
+      "work_experience_ref": null
     },
     "travelindr_mvp": {
       "label": "travelindr_mvp",
@@ -202,7 +219,12 @@
         "user counts",
         "any metric not listed above",
         "imply Branson wrote production code — the role was executive/product"
-      ]
+      ],
+      "work_experience_ref": {
+        "org": "Travelindr",
+        "fact_indices": [0, 1, 2, 3, 4, 5, 6],
+        "note": "All Travelindr work experience facts are relevant to this story"
+      }
     }
   }
 }

@@ -15,6 +15,7 @@ CANONICAL_FACT_STORES = {
     "work_experience": Path(r"C:\Code\CV_crawl\.cv-work-experience.json"),
     "projects": Path(r"C:\Code\CV_crawl\.cv-harvest-store.json"),
     "experience_cache": Path(r"C:\Code\CV_crawl\.experience-cache.json"),
+    "promoted_facts": Path(r"C:\Code\CV_crawl\.cv-facts-promoted.json"),
 }
 
 ARTIFACT_DEFAULT_PATHS = {
