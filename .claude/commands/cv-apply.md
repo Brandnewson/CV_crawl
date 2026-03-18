@@ -17,21 +17,21 @@ to that job, and produces a DOCX + PDF in `C:\Code\CV_crawl\output\`.
 | Checkpoint | `C:\Code\CV_crawl\.cv-apply-checkpoint.json` |
 | Fact patches log | `C:\Code\CV_crawl\.cv-fact-patches.jsonl` |
 | Run metrics log | `C:\Code\CV_crawl\.cv-apply-run-metrics.jsonl` |
-| CV template | `C:\Code\CV_CoverLetter_Generator_Agentic_Pipeline\job-pipeline\profile\cv_template.docx` |
-| Template map | `C:\Code\CV_CoverLetter_Generator_Agentic_Pipeline\job-pipeline\profile\template_map.json` |
+| CV template | `C:\Code\CV_crawl\profile\cv_template.docx` |
+| Template map | `C:\Code\CV_crawl\profile\template_map.json` |
 | Output dir | `C:\Users\brans\OneDrive - University of Leeds\GraduateJobHunting\claude-cv-outputs\` |
-| Pipeline code | `C:\Code\CV_CoverLetter_Generator_Agentic_Pipeline\job-pipeline\` |
-| uv project | `C:\Code\CV_CoverLetter_Generator_Agentic_Pipeline\job-pipeline\` |
+| Pipeline code | `C:\Code\CV_crawl\` |
+| uv project | `C:\Code\CV_crawl\` |
 
 ## Python runtime
 
 All Python must be run via uv so the pipeline's venv (psycopg2, lxml, pydantic, etc.) is active:
 
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" python <script> <args>
+uv run --project "C:/Code/CV_crawl" python <script> <args>
 ```
 
-Never call bare `python` - always prefix with `uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline"`.
+Never call bare `python` - always prefix with `uv run --project "C:/Code/CV_crawl"`.
 
 ---
 
@@ -40,7 +40,7 @@ Never call bare `python` - always prefix with `uv run --project "C:/Code/CV_Cove
 Use the hybrid stage runner as the primary execution engine:
 
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" \
+uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/cv_apply_runner.py" --resume
 ```
 
@@ -81,7 +81,7 @@ Runner stage graph:
 Run (let it fail loudly if DB is unavailable - no fallbacks):
 
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" \
+uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/query_jobs.py" --min-score 0.65 --status new --limit 20 --include-recent
 ```
 
@@ -178,10 +178,9 @@ if checkpoint.exists():
 3. If no cache hit: write the raw JD description to `C:\Code\CV_crawl\.cv-apply-jd-tmp.txt`.
 4. Attempt keyword extraction via subprocess:
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" python - <<'EOF'
+uv run --project "C:/Code/CV_crawl" python - <<'EOF'
 import sys, json
 sys.path.insert(0, r"C:\Code\CV_crawl")
-sys.path.insert(0, r"C:\Code\CV_CoverLetter_Generator_Agentic_Pipeline\job-pipeline")
 from tools.clean_jd import clean_jd
 from agent.jd_parser import extract_keywords, classify_role_family
 
@@ -228,7 +227,7 @@ Nice to have: Kafka, MATLAB, F1 experience, ...
 Load all three files directly (no subprocess needed - read them as part of orchestrator context):
 
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" python - <<'EOF'
+uv run --project "C:/Code/CV_crawl" python - <<'EOF'
 import json, sys
 from pathlib import Path
 
@@ -345,13 +344,13 @@ def save_cache(cache: dict) -> None:
 Build diversity-first claim units and subsection evidence packs before any writing:
 
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" \
+uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/evidence_select.py" \
     --work-exp "C:/Code/CV_crawl/.cv-work-experience.json" \
     --store "C:/Code/CV_crawl/.cv-harvest-store.json" \
     --keywords "C:/Code/CV_crawl/.cv-apply-jd-keywords-tmp.json" \
     --project-selections "C:/Code/CV_crawl/.cv-apply-project-selections.json" \
-    --template-map "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline/profile/template_map.json" \
+    --template-map "C:/Code/CV_crawl/profile/template_map.json" \
     --out "C:/Code/CV_crawl/.cv-apply-evidence-pack-tmp.json"
 ```
 
@@ -369,10 +368,10 @@ Output contract (`.cv-apply-evidence-pack-tmp.json`):
 Generate bullet intent cards and project/header assignments from the evidence pack:
 
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" \
+uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/slot_plan.py" \
     --evidence "C:/Code/CV_crawl/.cv-apply-evidence-pack-tmp.json" \
-    --template-map "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline/profile/template_map.json" \
+    --template-map "C:/Code/CV_crawl/profile/template_map.json" \
     --out "C:/Code/CV_crawl/.cv-apply-slot-plan-tmp.json"
 ```
 
@@ -517,7 +516,7 @@ After receiving the CV Writer's JSON output, write it to `C:\Code\CV_crawl\.cv-a
 then run the canonical validator contract:
 
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" \
+uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/validate_cv_output.py" \
     --selections "C:/Code/CV_crawl/.cv-apply-selections-tmp.json" \
     --slot-plan "C:/Code/CV_crawl/.cv-apply-slot-plan-tmp.json" \
@@ -548,12 +547,11 @@ Only proceed to Step 6 when `validate_cv_output.py` returns `ok: true`.
 ### Step 6 - Render DOCX
 
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" python - <<'EOF'
+uv run --project "C:/Code/CV_crawl" python - <<'EOF'
 import json, re, sys
 from pathlib import Path
 from datetime import datetime
 
-sys.path.insert(0, r"C:\Code\CV_CoverLetter_Generator_Agentic_Pipeline\job-pipeline")
 from agent.cv_renderer import render_cv
 from agent.validators import UserSelections
 
@@ -566,8 +564,8 @@ safe_role    = re.sub(r'[^\w\-]', '_', meta["job_title"])[:30]
 out_path = Path(rf"C:\Users\brans\OneDrive - University of Leeds\GraduateJobHunting\claude-cv-outputs\{safe_company}_{safe_role}_{datetime.now().strftime('%Y%m%d')}.docx")
 
 render_cv(
-    template_path=Path(r"C:\Code\CV_CoverLetter_Generator_Agentic_Pipeline\job-pipeline\profile\cv_template.docx"),
-    template_map_path=Path(r"C:\Code\CV_CoverLetter_Generator_Agentic_Pipeline\job-pipeline\profile\template_map.json"),
+    template_path=Path(r"C:\Code\CV_crawl\profile\cv_template.docx"),
+    template_map_path=Path(r"C:\Code\CV_crawl\profile\template_map.json"),
     selections=selections,
     job={"job_id": meta["job_id"], "title": meta["job_title"], "company": meta["company"]},
     output_path=out_path,
@@ -585,7 +583,7 @@ Capture stdout as the DOCX path.
 
 **a. Convert rendered DOCX -> images:**
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" python -c "
+uv run --project "C:/Code/CV_crawl" python -c "
 import comtypes.client, os, fitz, sys
 
 docx_path = sys.argv[1]
@@ -632,7 +630,6 @@ Read the rendered DOCX using python-docx and run these checks before showing the
 
 ```python
 import sys, re
-sys.path.insert(0, r"C:\Code\CV_CoverLetter_Generator_Agentic_Pipeline\job-pipeline")
 from docx import Document
 import json
 from pathlib import Path
@@ -786,13 +783,13 @@ If user types feedback (e.g. "Remove the Travelindr section, make bullet 3 of Ja
 
 1. Convert to PDF:
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" \
+uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/docx_to_pdf.py" "<docx_path>"
 ```
 
 2. Update job status in DB:
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" \
+uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/update_db.py" "<docx_path>" "<pdf_path>"
 ```
 

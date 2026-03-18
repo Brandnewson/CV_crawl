@@ -512,7 +512,7 @@ def parse_args() -> RunnerArgs:
     parser.add_argument("--store-path", default=r"C:\Code\CV_crawl\.cv-harvest-store.json")
     parser.add_argument("--cache-path", default=r"C:\Code\CV_crawl\.experience-cache.json")
     parser.add_argument("--project-selections-path", default=str(ARTIFACT_DEFAULT_PATHS["project_selections"]))
-    parser.add_argument("--template-map-path", default=r"C:\Code\CV_CoverLetter_Generator_Agentic_Pipeline\job-pipeline\profile\template_map.json")
+    parser.add_argument("--template-map-path", default=r"C:\Code\CV_crawl\profile\template_map.json")
     parser.add_argument("--selections-path", default=str(ARTIFACT_DEFAULT_PATHS["draft_sections"]))
     parser.add_argument("--feedback-path")
     parser.add_argument("--patch-json")

@@ -1,0 +1,100 @@
+# Scoring Profile Configuration
+# Used by the scorer to evaluate job fit
+
+target_roles:
+  - AI engineer
+  - Forward deployed software engineer
+  - Forward deployed engineer
+  - Agentic systems engineer
+  - Data engineer
+  - Machine learning engineer
+  - Software engineer
+
+industries:
+  - AI startups
+  - Robotics
+  - Deep-tech engineering software
+  - Industrial AI
+  - Simulation platforms
+  - Autonomous systems
+  - Motorsport
+  - Automotive
+
+locations:
+  preferred:
+    - London
+    - Toronto
+    - New York
+    - San Francisco
+    - Seattle
+  acceptable:
+    - Amsterdam
+    - California
+  notes: "Willing to relocate within UK or EU"
+
+must_have_keywords:
+  - software
+  - engineering
+
+nice_to_have_keywords:
+  - AI
+  - machine learning
+  - simulation
+  - optimisation
+  - distributed systems
+  - agentic systems
+  - data pipelines
+  - model deployment
+  - customer deployment
+  - field engineering
+  - reinforcement learning
+  - physics simulation
+  - digital twins
+  - autonomy
+  - robotics perception
+  - LLMs
+  - control systems
+  - Kubernetes
+  - cloud infrastructure
+  - Python
+  - Rust
+  - real-time systems
+  - robotics
+  - inference
+  - forward deployed
+
+hard_exclusions:
+  title_keywords:
+    - senior
+    - staff
+    - principal
+    - lead
+    - director
+    - vice president
+    - junior
+    - intern
+    - internship
+  description_keywords:
+    - unpaid
+    - graduate scheme
+    - graduate programme
+    - graduate program
+
+salary:
+  floor: 40000
+  currency: GBP
+  notes: "Skip if stated salary is below floor; include if salary not stated"
+
+seniority:
+  target: "Entry to mid-level (post first role)"
+  exclude:
+    - junior
+    - graduate scheme
+
+core_strengths:
+  - Building engineering software tools for real-time operational decision making
+  - Developing data pipelines and telemetry processing systems
+  - Full-stack engineering for technical users (React + backend APIs)
+  - Deploying and managing containerised engineering applications in cloud environments
+  - Collaborating across software, data science, and engineering teams to operationalise ML/AI systems
+  

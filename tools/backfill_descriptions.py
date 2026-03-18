@@ -4,7 +4,7 @@ Fetches LinkedIn descriptions via the guest API and Indeed descriptions via
 direct page scraping, then updates the DB.
 
 Usage:
-    uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" \
+    uv run --project "C:/Code/CV_crawl" \
         python "C:/Code/CV_crawl/tools/backfill_descriptions.py" [--dry-run] [--limit N]
 """
 
@@ -18,7 +18,6 @@ import psycopg2
 import requests
 from bs4 import BeautifulSoup
 
-sys.path.insert(0, r"C:\Code\CV_CoverLetter_Generator_Agentic_Pipeline\job-pipeline")
 from discovery.enrichment import normalize_job_description_markdown
 
 # Load .env from CV_crawl

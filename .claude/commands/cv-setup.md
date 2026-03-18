@@ -336,8 +336,9 @@ Print:
   <status for each file changed or unchanged>
 
 You are ready to run:
-  /cv-harvest  — analyse your projects and build .cv-harvest-store.json (~3-5 min)
-  /cv-apply    — generate a tailored CV for a job from your DB
+  /cv-harvest   — analyse your projects and build .cv-harvest-store.json (~3-5 min)
+  /cv-discover  — search for new jobs (configure search terms, location, sites)
+  /cv-apply     — generate a tailored CV for a job from your DB
 
 If you need to customise paths (hardcoded to a specific machine), update:
   .claude/commands/cv-apply.md  — "Paths" table at top of file

@@ -1,7 +1,7 @@
 """Query PostgreSQL job DB and return ranked job list as JSON.
 
 Usage (via uv):
-    uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" \
+    uv run --project "C:/Code/CV_crawl" \
         python "C:/Code/CV_crawl/tools/query_jobs.py" [--min-score 0.65] [--status new] [--limit 20] [--include-recent]
 
 Without --include-recent: returns JSON array of new jobs sorted by fit_score descending.

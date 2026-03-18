@@ -15,6 +15,10 @@
 | GitHub | github.com/Brandnewson |
 | Claude Code command | `.claude\commands\cv-harvest.md` |
 | Output file | `C:\Code\CV_crawl\.cv-harvest-output.md` |
+| CV template | `C:\Code\CV_crawl\profile\cv_template.docx` |
+| Template map | `C:\Code\CV_crawl\profile\template_map.json` |
+| Scoring profile | `C:\Code\CV_crawl\profile\scoring_profile.yaml` |
+| Python venv | `uv run --project "C:/Code/CV_crawl"` |
 
 ---
 

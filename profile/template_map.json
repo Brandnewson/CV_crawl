@@ -1,0 +1,98 @@
+{
+  "work_experience": {
+    "Jaguar TCS Racing": {
+      "header_xpaths": [
+        "/w:document/w:body/w:p[5]",
+        "/w:document/w:body/w:p[6]",
+        "/w:document/w:body/w:p[7]"
+      ],
+      "bullet_xpaths": [
+        "/w:document/w:body/w:p[8]",
+        "/w:document/w:body/w:p[9]",
+        "/w:document/w:body/w:p[10]",
+        "/w:document/w:body/w:p[11]",
+        "/w:document/w:body/w:p[12]",
+        "/w:document/w:body/w:p[13]",
+        "/w:document/w:body/w:p[14]",
+        "/w:document/w:body/w:p[15]",
+        "/w:document/w:body/w:p[16]",
+        "/w:document/w:body/w:p[17]",
+        "/w:document/w:body/w:p[18]",
+        "/w:document/w:body/w:p[19]",
+        "/w:document/w:body/w:p[20]"
+      ]
+    },
+    "Republic of Singapore Navy": {
+      "header_xpaths": [
+        "/w:document/w:body/w:p[22]",
+        "/w:document/w:body/w:p[23]"
+      ],
+      "bullet_xpaths": [
+        "/w:document/w:body/w:p[24]",
+        "/w:document/w:body/w:p[25]",
+        "/w:document/w:body/w:p[26]",
+        "/w:document/w:body/w:p[27]",
+        "/w:document/w:body/w:p[28]"
+      ]
+    },
+    "Travelindr": {
+      "header_xpaths": [
+        "/w:document/w:body/w:p[30]",
+        "/w:document/w:body/w:p[31]"
+      ],
+      "bullet_xpaths": [
+        "/w:document/w:body/w:p[32]",
+        "/w:document/w:body/w:p[33]",
+        "/w:document/w:body/w:p[34]"
+      ]
+    }
+  },
+  "technical_projects": {
+    "Formula Student Lap Time Simulator": {
+      "header_xpaths": [
+        "/w:document/w:body/w:p[48]"
+      ],
+      "bullet_xpaths": [
+        "/w:document/w:body/w:p[49]",
+        "/w:document/w:body/w:p[50]",
+        "/w:document/w:body/w:p[51]"
+      ]
+    },
+    "Radiator Thermal Management Simulator": {
+      "header_xpaths": [
+        "/w:document/w:body/w:p[53]"
+      ],
+      "bullet_xpaths": [
+        "/w:document/w:body/w:p[54]",
+        "/w:document/w:body/w:p[55]"
+      ]
+    },
+    "2D CFD Formula Student Radiator Optimisation Simulator": {
+      "header_xpaths": [
+        "/w:document/w:body/w:p[56]"
+      ],
+      "bullet_xpaths": [
+        "/w:document/w:body/w:p[57]",
+        "/w:document/w:body/w:p[58]"
+      ]
+    },
+    "Formula Student ICE Data Acquisition System": {
+      "header_xpaths": [
+        "/w:document/w:body/w:p[60]"
+      ],
+      "bullet_xpaths": [
+        "/w:document/w:body/w:p[61]",
+        "/w:document/w:body/w:p[62]"
+      ]
+    },
+    "Formula Student EV Battery Management System": {
+      "header_xpaths": [
+        "/w:document/w:body/w:p[64]"
+      ],
+      "bullet_xpaths": [
+        "/w:document/w:body/w:p[65]",
+        "/w:document/w:body/w:p[66]"
+      ]
+    }
+  }
+}

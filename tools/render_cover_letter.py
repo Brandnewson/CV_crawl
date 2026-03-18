@@ -21,7 +21,7 @@ Input JSON schema:
 }
 
 Usage:
-    uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" \\
+    uv run --project "C:/Code/CV_crawl" \\
         python "C:/Code/CV_crawl/tools/render_cover_letter.py" <json_path>
 
 Writes DOCX to:

@@ -694,7 +694,7 @@ Write to `C:\Code\CV_crawl\.cv-cover-letter-tmp.json`.
 ### 9b. Render DOCX
 
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" \
+uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/render_cover_letter.py" \
     "C:/Code/CV_crawl/.cv-cover-letter-tmp.json"
 ```
@@ -704,7 +704,7 @@ Capture stdout as `cl_docx_path`.
 ### 9c. Convert to PDF
 
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" \
+uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/docx_to_pdf.py" "[cl_docx_path]"
 ```
 
@@ -717,7 +717,7 @@ The cover letter **MUST** be one page.
 Run:
 
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" \
+uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/enforce_one_page_cover_letter.py" \
     "C:/Code/CV_crawl/.cv-cover-letter-tmp.json"
 ```
@@ -748,7 +748,7 @@ If the script fails (still >1 page):
 ### 9e. Update database
 
 ```python
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" python -c "
+uv run --project "C:/Code/CV_crawl" python -c "
 import psycopg2, os, sys, json
 from datetime import datetime
 from pathlib import Path

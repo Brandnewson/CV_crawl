@@ -12,6 +12,7 @@ Runs entirely locally — no external CV service, no data leaving your machine.
 |---|---|
 | `/cv-setup` | **Start here.** Guided interactive setup to populate your profile, work experience facts, and cover letter stories |
 | `/cv-harvest` | Analyses all your local projects and GitHub history, producing a store of per-project CV entries (~3-5 min) |
+| `/cv-discover` | Searches for new jobs using JobSpy, deduplicates, scores with OpenAI, and shows ranked results |
 | `/cv-apply` | Takes a job from your PostgreSQL pipeline, asks targeted gap-fill questions, writes a tailored DOCX + PDF CV (~5-20 min) |
 
 ---
@@ -29,13 +30,13 @@ Runs entirely locally — no external CV service, no data leaving your machine.
 ### Install Python dependencies
 
 ```powershell
-# From the pipeline project directory
-uv sync --project "C:\Code\CV_CoverLetter_Generator_Agentic_Pipeline\job-pipeline"
+# From the CV_crawl directory
+uv sync --project "C:\Code\CV_crawl"
 ```
 
 Or install individually:
 ```powershell
-pip install pypdf mammoth python-docx psycopg2 lxml pydantic fastf1 python-dotenv
+pip install pypdf mammoth python-docx psycopg2 lxml pydantic python-dotenv openai anthropic
 ```
 
 ---
@@ -98,7 +99,7 @@ interrupted, you may find them in the working directory:
 ## Customising for your own machine
 
 The paths in this repo are hardcoded to the original developer's machine. If you are
-setting this up fresh, update these 5 files:
+setting this up fresh, update these files:
 
 | File | What to change |
 |---|---|
@@ -107,10 +108,13 @@ setting this up fresh, update these 5 files:
 | `.claude/skills/cover-letter-generation/SKILL.md` | Output paths, profile path |
 | `tools/cv_apply_contract.py` | `DEFAULT_CHECKPOINT_PATH`, `CANONICAL_FACT_STORES` paths |
 | `tools/query_jobs.py` | Database connection string (if not using `.env`) |
+| `profile/cv_template.docx` | Replace with your own CV template DOCX |
+| `profile/scoring_profile.yaml` | Update target roles and keywords for your job search |
 
-Also update your `.env` file (not committed) with your PostgreSQL credentials:
+Also update your `.env` file (not committed) with your PostgreSQL and OpenAI credentials:
 ```env
 DATABASE_URL=postgresql://user:password@localhost:5432/yourdb
+OPENAI_API_KEY=sk-...
 ```
 
 ---
@@ -166,7 +170,7 @@ User types: /cv-apply
 
 Each stage writes a checkpoint — if the process is interrupted, resume with:
 ```
-uv run --project "C:/Code/CV_CoverLetter_Generator_Agentic_Pipeline/job-pipeline" \
+uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/cv_apply_runner.py" --resume
 ```
 
