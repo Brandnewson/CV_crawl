@@ -60,6 +60,17 @@ def _selection_slot_keys(selections: dict[str, Any]) -> set[tuple[str, str, int]
     return keys
 
 
+def _keyword_target_by_slot(slot_plan: dict[str, Any]) -> dict[tuple[str, str, int], str]:
+    targets: dict[tuple[str, str, int], str] = {}
+    for card in slot_plan.get("bullet_intent_cards", []):
+        keyword_target = str(card.get("keyword_target", "")).strip()
+        if not keyword_target:
+            continue
+        key = (str(card.get("section", "")), str(card.get("subsection", "")), int(card.get("slot_index", 0)))
+        targets[key] = keyword_target
+    return targets
+
+
 def validate(
     selections: dict[str, Any],
     slot_plan: dict[str, Any],
@@ -68,6 +79,7 @@ def validate(
     hard_failures: list[dict[str, Any]] = []
     soft_warnings: list[dict[str, Any]] = []
     explicit_not = _explicit_not_terms(work_exp or {})
+    keyword_targets = _keyword_target_by_slot(slot_plan)
 
     required_keys = _required_slot_keys(slot_plan)
     actual_keys = _selection_slot_keys(selections)
@@ -81,6 +93,7 @@ def validate(
     verbs: list[str] = []
     for bullet in selections.get("approved_bullets", []):
         text = str(bullet.get("text", ""))
+        slot_key = (bullet.get("section", ""), bullet.get("subsection", ""), int(bullet.get("slot_index", 0)))
         length = len(text)
         if length < HARD_MIN_LEN or length > HARD_MAX_LEN:
             hard_failures.append(
@@ -102,6 +115,15 @@ def validate(
             )
 
         lowered = _norm(text)
+        keyword_target = keyword_targets.get(slot_key, "")
+        if keyword_target and _norm(keyword_target) not in lowered:
+            hard_failures.append(
+                {
+                    "type": "keyword_target_verbatim_missing",
+                    "slot": [bullet.get("section"), bullet.get("subsection"), bullet.get("slot_index")],
+                    "keyword_target": keyword_target,
+                }
+            )
         for phrase in BANNED_PHRASES:
             if phrase in lowered:
                 hard_failures.append(

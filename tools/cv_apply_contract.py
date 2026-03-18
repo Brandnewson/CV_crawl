@@ -11,6 +11,23 @@ DEFAULT_CHECKPOINT_PATH = Path(r"C:\Code\CV_crawl\.cv-apply-checkpoint.json")
 DEFAULT_FACT_PATCH_LOG = Path(r"C:\Code\CV_crawl\.cv-fact-patches.jsonl")
 DEFAULT_METRICS_LOG = Path(r"C:\Code\CV_crawl\.cv-apply-run-metrics.jsonl")
 
+CV_FORMAT_PROFILES = {
+    2: {
+        "name": "2-page",
+        "template_path": Path(r"C:\Code\CV_crawl\profile\cv_template.docx"),
+        "template_map_path": Path(r"C:\Code\CV_crawl\profile\template_map.json"),
+        "expected_pages": 2,
+        "insert_page_break_before_technical_projects": True,
+    },
+    1: {
+        "name": "1-page",
+        "template_path": Path(r"C:\Code\CV_crawl\reference_files\Branson Tay CV 1 page template.docx"),
+        "template_map_path": Path(r"C:\Code\CV_crawl\profile\template_map_1page.json"),
+        "expected_pages": 1,
+        "insert_page_break_before_technical_projects": False,
+    },
+}
+
 CANONICAL_FACT_STORES = {
     "work_experience": Path(r"C:\Code\CV_crawl\.cv-work-experience.json"),
     "projects": Path(r"C:\Code\CV_crawl\.cv-harvest-store.json"),

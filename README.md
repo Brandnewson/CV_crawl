@@ -108,7 +108,8 @@ setting this up fresh, update these files:
 | `.claude/skills/cover-letter-generation/SKILL.md` | Output paths, profile path |
 | `tools/cv_apply_contract.py` | `DEFAULT_CHECKPOINT_PATH`, `CANONICAL_FACT_STORES` paths |
 | `tools/query_jobs.py` | Database connection string (if not using `.env`) |
-| `profile/cv_template.docx` | Replace with your own CV template DOCX |
+| `profile/cv_template.docx` + `reference_files/Branson Tay CV 1 page template.docx` | Replace with your own 2-page and 1-page CV templates |
+| `profile/template_map.json` + `profile/template_map_1page.json` | Keep XPath maps aligned with each template |
 | `profile/scoring_profile.yaml` | Update target roles and keywords for your job search |
 
 Also update your `.env` file (not committed) with your PostgreSQL and OpenAI credentials:
@@ -140,7 +141,7 @@ User types: /cv-apply
   Deterministic validator          Render DOCX → PDF
         |                                      |
         v                                      v
-  Layout gate (2-page check)       DB update + cover letter
+  Layout gate (expected-page check) DB update + cover letter
 ```
 
 ### The 20 pipeline stages
@@ -160,7 +161,7 @@ User types: /cv-apply
 | `assemble` | Combine all sections |
 | `validate_deterministic` | Check lengths, verbs, constraints |
 | `render_docx_pdf` | Render DOCX using the template |
-| `layout_gate_2pages` | Check the CV fits on 2 pages |
+| `layout_gate_2pages` | Check the CV matches the expected page count (1 or 2) |
 | `preview_feedback` | Show CV to user for approval |
 | `feedback_classify` | Classify user feedback (style vs fact vs structure) |
 | `fact_patch_apply` | Apply any fact corrections |

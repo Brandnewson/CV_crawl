@@ -1,0 +1,68 @@
+{
+  "work_experience": {
+    "Jaguar TCS Racing": {
+      "header_xpaths": [
+        "/w:document/w:body/w:p[5]",
+        "/w:document/w:body/w:p[6]"
+      ],
+      "bullet_xpaths": [
+        "/w:document/w:body/w:p[7]",
+        "/w:document/w:body/w:p[8]",
+        "/w:document/w:body/w:p[9]",
+        "/w:document/w:body/w:p[10]",
+        "/w:document/w:body/w:p[11]",
+        "/w:document/w:body/w:p[12]",
+        "/w:document/w:body/w:p[13]"
+      ]
+    },
+    "Republic of Singapore Navy": {
+      "header_xpaths": [
+        "/w:document/w:body/w:p[15]",
+        "/w:document/w:body/w:p[16]"
+      ],
+      "bullet_xpaths": [
+        "/w:document/w:body/w:p[17]",
+        "/w:document/w:body/w:p[18]",
+        "/w:document/w:body/w:p[19]"
+      ]
+    },
+    "Travelindr": {
+      "header_xpaths": [
+        "/w:document/w:body/w:p[21]",
+        "/w:document/w:body/w:p[22]"
+      ],
+      "bullet_xpaths": [
+        "/w:document/w:body/w:p[23]",
+        "/w:document/w:body/w:p[24]"
+      ]
+    }
+  },
+  "technical_projects": {
+    "F1 Race Strategy MARL Simulator": {
+      "header_xpaths": [
+        "/w:document/w:body/w:p[37]"
+      ],
+      "bullet_xpaths": [
+        "/w:document/w:body/w:p[38]",
+        "/w:document/w:body/w:p[39]"
+      ]
+    },
+    "Agentic CV & Cover Letter Pipeline": {
+      "header_xpaths": [
+        "/w:document/w:body/w:p[41]"
+      ],
+      "bullet_xpaths": [
+        "/w:document/w:body/w:p[42]"
+      ]
+    },
+    "Aerodynamic Concept RAG Analyser": {
+      "header_xpaths": [
+        "/w:document/w:body/w:p[44]"
+      ],
+      "bullet_xpaths": [
+        "/w:document/w:body/w:p[45]",
+        "/w:document/w:body/w:p[46]"
+      ]
+    }
+  }
+}

@@ -128,8 +128,10 @@ def main() -> None:
     else:
         output = query_jobs(args.min_score, args.status, args.limit)
 
-    sys.stdout.buffer.write(json.dumps(output, indent=2, ensure_ascii=False).encode("utf-8"))
-    sys.stdout.buffer.write(b"\n")
+    # Emit ASCII-safe JSON so callers using subprocess(text=True) with different
+    # platform encodings can parse output reliably on Windows shells.
+    sys.stdout.write(json.dumps(output, indent=2, ensure_ascii=True))
+    sys.stdout.write("\n")
 
 
 if __name__ == "__main__":

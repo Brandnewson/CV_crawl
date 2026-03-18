@@ -17,6 +17,7 @@
 | Output file | `C:\Code\CV_crawl\.cv-harvest-output.md` |
 | CV template | `C:\Code\CV_crawl\profile\cv_template.docx` |
 | Template map | `C:\Code\CV_crawl\profile\template_map.json` |
+| Automation lessons | `C:\Code\CV_crawl\LESSONS.md` |
 | Scoring profile | `C:\Code\CV_crawl\profile\scoring_profile.yaml` |
 | Python venv | `uv run --project "C:/Code/CV_crawl"` |
 
@@ -139,6 +140,7 @@ Expect 2-5 minutes. Output saved to `.cv-harvest-output.md`.
 
 | Problem | Fix |
 |---|---|
+| Bash `unexpected EOF while looking for matching '"'` | Follow `LESSONS.md` L001 and run multiline Python via heredoc (`python - <<'PY'`) |
 | `claude: command not found` | Check PATH after npm install |
 | `pypdf` or `mammoth` errors | Run `pip install pypdf mammoth --break-system-packages` |
 | GitHub rate limit | Set `GITHUB_TOKEN` env var for 5000 req/hr |

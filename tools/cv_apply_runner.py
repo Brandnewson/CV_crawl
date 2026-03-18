@@ -26,6 +26,7 @@ from check_pdf_pages import get_page_count
 from cv_apply_contract import (
     ARTIFACT_DEFAULT_PATHS,
     CHECKPOINT_SCHEMA_VERSION,
+    CV_FORMAT_PROFILES,
     DEFAULT_CHECKPOINT_PATH,
     DEFAULT_METRICS_LOG,
     STAGE_ORDER,
@@ -83,7 +84,11 @@ class RunnerArgs:
     store_path: Path
     cache_path: Path
     project_selections_path: Path
-    template_map_path: Path
+    cv_length_pages: int | None
+    template_path: Path | None
+    template_map_path: Path | None
+    expected_pages: int | None
+    insert_page_break_before_technical_projects: bool | None
     selections_path: Path
     feedback_path: Path | None
     patch_json: Path | None
@@ -121,6 +126,66 @@ class CVApplyRunner:
             "persist_db": self.stage_persist_db,
             "cover_letter_handoff": self.stage_cover_letter_handoff,
         }
+
+    def _has_cli_cv_overrides(self) -> bool:
+        return any(
+            (
+                self.args.cv_length_pages is not None,
+                self.args.template_path is not None,
+                self.args.template_map_path is not None,
+                self.args.expected_pages is not None,
+                self.args.insert_page_break_before_technical_projects is not None,
+            )
+        )
+
+    def _resolve_cv_format_profile(self, meta: dict[str, Any] | None = None) -> dict[str, Any]:
+        meta = meta or {}
+
+        cv_length_pages: int
+        if self.args.cv_length_pages is not None:
+            cv_length_pages = int(self.args.cv_length_pages)
+        elif str(meta.get("cv_length_pages", "")).strip() in {"1", "2"}:
+            cv_length_pages = int(meta["cv_length_pages"])
+        else:
+            cv_length_pages = 2
+
+        if cv_length_pages not in CV_FORMAT_PROFILES:
+            cv_length_pages = 2
+        profile_defaults = CV_FORMAT_PROFILES[cv_length_pages]
+
+        template_path = self.args.template_path or profile_defaults["template_path"]
+        template_map_path = self.args.template_map_path or profile_defaults["template_map_path"]
+        expected_pages = (
+            int(self.args.expected_pages)
+            if self.args.expected_pages is not None
+            else int(profile_defaults["expected_pages"])
+        )
+        if self.args.insert_page_break_before_technical_projects is None:
+            insert_break = bool(profile_defaults["insert_page_break_before_technical_projects"])
+        else:
+            insert_break = bool(self.args.insert_page_break_before_technical_projects)
+
+        return {
+            "profile_name": profile_defaults["name"],
+            "cv_length_pages": cv_length_pages,
+            "template_path": str(Path(template_path)),
+            "template_map_path": str(Path(template_map_path)),
+            "expected_pages": expected_pages,
+            "insert_page_break_before_technical_projects": insert_break,
+        }
+
+    def _ensure_cv_format_profile(self, meta: dict[str, Any] | None = None) -> dict[str, Any]:
+        existing = self.ckpt.get("artifacts", {}).get("cv_format_profile")
+        if existing and not self._has_cli_cv_overrides():
+            return existing
+
+        profile = self._resolve_cv_format_profile(meta=meta)
+        self.ckpt.setdefault("artifacts", {})["cv_format_profile"] = profile
+        if meta is not None:
+            meta["cv_length_pages"] = profile["cv_length_pages"]
+            _write_json(self.args.meta_path, meta)
+        self._save_checkpoint()
+        return profile
 
     def _default_checkpoint(self) -> dict[str, Any]:
         return {
@@ -193,6 +258,9 @@ class CVApplyRunner:
             raise SystemExit(f"Unknown target stage: {self.args.target_stage}")
 
         start_idx = self.ckpt.get("step_completed", 0) if self.args.resume else 0
+        if start_idx > 0:
+            meta = _load_json(self.args.meta_path, default={}) if self.args.meta_path.exists() else None
+            self._ensure_cv_format_profile(meta=meta if isinstance(meta, dict) else None)
         if start_idx >= len(STAGE_ORDER):
             print(json.dumps({"ok": True, "message": "All stages already completed"}))
             return
@@ -236,7 +304,8 @@ class CVApplyRunner:
         missing = [k for k in required if k not in meta]
         if missing:
             raise StageBlockedError(f"job_meta missing required keys: {missing}")
-        return {"job_meta": meta}
+        cv_format_profile = self._ensure_cv_format_profile(meta=meta)
+        return {"job_meta": meta, "cv_format_profile": cv_format_profile}
 
     def stage_jd_extract(self) -> dict[str, Any]:
         if not self.args.keywords_path.exists():
@@ -331,7 +400,9 @@ class CVApplyRunner:
         store = _load_json(self.args.store_path, default={})
         keywords = _load_keywords(self.args.keywords_path)
         project_selections = _load_json(self.args.project_selections_path, default={})
-        template_map = _load_json(self.args.template_map_path, default={})
+        cv_format_profile = self.ckpt["artifacts"].get("cv_format_profile") or self._ensure_cv_format_profile()
+        template_map_path = Path(cv_format_profile["template_map_path"])
+        template_map = _load_json(template_map_path, default={})
         evidence = build_evidence(
             work_exp=work_exp,
             store=store,
@@ -346,7 +417,9 @@ class CVApplyRunner:
         evidence = self.ckpt["artifacts"].get("evidence_packs")
         if not evidence:
             evidence = _load_json(ARTIFACT_DEFAULT_PATHS["evidence_packs"])
-        template_map = _load_json(self.args.template_map_path, default={})
+        cv_format_profile = self.ckpt["artifacts"].get("cv_format_profile") or self._ensure_cv_format_profile()
+        template_map_path = Path(cv_format_profile["template_map_path"])
+        template_map = _load_json(template_map_path, default={})
         previous = self.ckpt["artifacts"].get("slot_plan")
         plan = build_slot_plan(evidence=evidence, template_map=template_map)
         _write_json(ARTIFACT_DEFAULT_PATHS["slot_plan"], plan)
@@ -394,26 +467,55 @@ class CVApplyRunner:
     def stage_render_docx_pdf(self) -> dict[str, Any]:
         docx_path = self.args.docx_path
         pdf_path = self.args.pdf_path
+        cv_format_profile = self.ckpt["artifacts"].get("cv_format_profile") or self._ensure_cv_format_profile()
         if not docx_path:
-            completed = subprocess.run([sys.executable, "render_cv.py"], check=False, capture_output=True, text=True)
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT_DIR / "render_cv.py"),
+                    "--template-path",
+                    str(cv_format_profile["template_path"]),
+                    "--template-map-path",
+                    str(cv_format_profile["template_map_path"]),
+                    "--insert-page-break-before-technical-projects",
+                    "true" if cv_format_profile["insert_page_break_before_technical_projects"] else "false",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
             if completed.returncode != 0:
                 raise StageBlockedError(f"render_cv failed: {completed.stderr.strip()}")
             docx_path = completed.stdout.strip().splitlines()[-1].strip()
         if not pdf_path:
             pdf_path = str(convert_docx_to_pdf(docx_path))
 
-        outputs = {"docx_path": docx_path, "pdf_path": pdf_path}
+        outputs = {
+            "docx_path": docx_path,
+            "pdf_path": pdf_path,
+            "template_path": cv_format_profile["template_path"],
+            "template_map_path": cv_format_profile["template_map_path"],
+            "expected_pages": cv_format_profile["expected_pages"],
+        }
         return {"render_outputs": outputs}
 
     def stage_layout_gate_2pages(self) -> dict[str, Any]:
         render_outputs = self.ckpt["artifacts"].get("render_outputs")
         if not render_outputs:
             raise StageBlockedError("render_outputs missing; run render_docx_pdf first")
+        cv_format_profile = self.ckpt["artifacts"].get("cv_format_profile") or self._ensure_cv_format_profile()
+        expected_pages = int(cv_format_profile["expected_pages"])
         pdf_path = Path(render_outputs["pdf_path"])
         pages = get_page_count(pdf_path)
-        report = {"pdf_path": str(pdf_path), "pages": pages, "exact_2pages": pages == 2, "iterations": 0}
-        if pages != 2:
-            raise StageBlockedError(f"Layout gate failed: expected 2 pages, got {pages}")
+        report = {
+            "pdf_path": str(pdf_path),
+            "expected_pages": expected_pages,
+            "actual_pages": pages,
+            "page_match": pages == expected_pages,
+            "iterations": 0,
+        }
+        if pages != expected_pages:
+            raise StageBlockedError(f"Layout gate failed: expected {expected_pages} page(s), got {pages}")
         self.ckpt["layout_report"] = report
         return {"layout_report": report}
 
@@ -512,7 +614,14 @@ def parse_args() -> RunnerArgs:
     parser.add_argument("--store-path", default=r"C:\Code\CV_crawl\.cv-harvest-store.json")
     parser.add_argument("--cache-path", default=r"C:\Code\CV_crawl\.experience-cache.json")
     parser.add_argument("--project-selections-path", default=str(ARTIFACT_DEFAULT_PATHS["project_selections"]))
-    parser.add_argument("--template-map-path", default=r"C:\Code\CV_crawl\profile\template_map.json")
+    parser.add_argument("--cv-length-pages", type=int, choices=[1, 2])
+    parser.add_argument("--template-path")
+    parser.add_argument("--template-map-path")
+    parser.add_argument("--expected-pages", type=int)
+    parser.add_argument(
+        "--insert-page-break-before-technical-projects",
+        choices=["true", "false"],
+    )
     parser.add_argument("--selections-path", default=str(ARTIFACT_DEFAULT_PATHS["draft_sections"]))
     parser.add_argument("--feedback-path")
     parser.add_argument("--patch-json")
@@ -530,7 +639,15 @@ def parse_args() -> RunnerArgs:
         store_path=Path(ns.store_path),
         cache_path=Path(ns.cache_path),
         project_selections_path=Path(ns.project_selections_path),
-        template_map_path=Path(ns.template_map_path),
+        cv_length_pages=ns.cv_length_pages,
+        template_path=Path(ns.template_path) if ns.template_path else None,
+        template_map_path=Path(ns.template_map_path) if ns.template_map_path else None,
+        expected_pages=ns.expected_pages,
+        insert_page_break_before_technical_projects=(
+            None
+            if ns.insert_page_break_before_technical_projects is None
+            else ns.insert_page_break_before_technical_projects == "true"
+        ),
         selections_path=Path(ns.selections_path),
         feedback_path=Path(ns.feedback_path) if ns.feedback_path else None,
         patch_json=Path(ns.patch_json) if ns.patch_json else None,

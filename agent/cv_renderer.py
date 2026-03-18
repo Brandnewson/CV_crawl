@@ -159,7 +159,8 @@ def render_cv(
     template_map_path: Path,
     selections: UserSelections,
     job: dict,
-    output_path: Path
+    output_path: Path,
+    insert_page_break_before_technical_projects: bool = True,
 ) -> Path:
     """
     1. Copy template to output_path (never touch original)
@@ -265,20 +266,21 @@ def render_cv(
                         except Exception:
                             pass
 
-        # Insert page break before the Technical Projects section heading (p[47]).
-        try:
-            page_break_para = root.xpath('/w:document/w:body/w:p[47]', namespaces=NAMESPACES)
-            if page_break_para:
-                para = page_break_para[0]
-                w_ns = NAMESPACES['w']
-                run_el = etree.Element('{%s}r' % w_ns)
-                br_el = etree.SubElement(run_el, '{%s}br' % w_ns)
-                br_el.set('{%s}type' % w_ns, 'page')
-                ppr = para.find('{%s}pPr' % w_ns)
-                insert_pos = (list(para).index(ppr) + 1) if ppr is not None else 0
-                para.insert(insert_pos, run_el)
-        except Exception:
-            pass
+        if insert_page_break_before_technical_projects:
+            # Insert page break before the Technical Projects section heading (p[47]).
+            try:
+                page_break_para = root.xpath('/w:document/w:body/w:p[47]', namespaces=NAMESPACES)
+                if page_break_para:
+                    para = page_break_para[0]
+                    w_ns = NAMESPACES['w']
+                    run_el = etree.Element('{%s}r' % w_ns)
+                    br_el = etree.SubElement(run_el, '{%s}br' % w_ns)
+                    br_el.set('{%s}type' % w_ns, 'page')
+                    ppr = para.find('{%s}pPr' % w_ns)
+                    insert_pos = (list(para).index(ppr) + 1) if ppr is not None else 0
+                    para.insert(insert_pos, run_el)
+            except Exception:
+                pass
 
         # Write modified XML back
         tree.write(

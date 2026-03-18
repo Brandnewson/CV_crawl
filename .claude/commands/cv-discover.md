@@ -11,12 +11,18 @@ ranked results. Requires a running PostgreSQL database and `OPENAI_API_KEY` in `
 |---|---|
 | Config | `C:\Code\CV_crawl\discovery\config.yaml` |
 | Scoring profile | `C:\Code\CV_crawl\profile\scoring_profile.yaml` |
+| Automation lessons | `C:\Code\CV_crawl\LESSONS.md` |
 | uv project | `C:\Code\CV_crawl\` |
 | .env | `C:\Code\CV_crawl\.env` |
 
 ---
 
 ## ORCHESTRATOR — run this sequence
+
+Before executing any shell/Python snippet, read `C:\Code\CV_crawl\LESSONS.md`
+and apply relevant rules (especially L001 for bash quoting).
+If a recurring automation failure appears, append a new lesson entry with
+symptom, root cause, and safe pattern.
 
 ### Step 0 — Load current config
 
@@ -68,16 +74,20 @@ Title exclusion keywords (comma-separated, Enter to keep current):
 
 Write the updated config back to `discovery/config.yaml`:
 
-```python
-uv run --project "C:/Code/CV_crawl" python -c "
-import yaml, sys
+```bash
+uv run --project "C:/Code/CV_crawl" python - <<'PY'
+import yaml
 from pathlib import Path
-cfg_path = Path(r'C:\Code\CV_crawl\discovery\config.yaml')
-cfg = yaml.safe_load(cfg_path.read_text(encoding='utf-8'))
+
+cfg_path = Path(r"C:\Code\CV_crawl\discovery\config.yaml")
+cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
 # [apply user's updates to cfg dict]
-cfg_path.write_text(yaml.dump(cfg, default_flow_style=False, allow_unicode=True, sort_keys=False), encoding='utf-8')
-print('Config saved.')
-"
+cfg_path.write_text(
+    yaml.dump(cfg, default_flow_style=False, allow_unicode=True, sort_keys=False),
+    encoding="utf-8",
+)
+print("Config saved.")
+PY
 ```
 
 After saving, confirm: `Config saved to discovery/config.yaml`

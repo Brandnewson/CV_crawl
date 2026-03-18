@@ -17,8 +17,11 @@ to that job, and produces a DOCX + PDF in `C:\Code\CV_crawl\output\`.
 | Checkpoint | `C:\Code\CV_crawl\.cv-apply-checkpoint.json` |
 | Fact patches log | `C:\Code\CV_crawl\.cv-fact-patches.jsonl` |
 | Run metrics log | `C:\Code\CV_crawl\.cv-apply-run-metrics.jsonl` |
-| CV template | `C:\Code\CV_crawl\profile\cv_template.docx` |
-| Template map | `C:\Code\CV_crawl\profile\template_map.json` |
+| CV template (2-page) | `C:\Code\CV_crawl\profile\cv_template.docx` |
+| Template map (2-page) | `C:\Code\CV_crawl\profile\template_map.json` |
+| CV template (1-page) | `C:\Code\CV_crawl\reference_files\Branson Tay CV 1 page template.docx` |
+| Template map (1-page) | `C:\Code\CV_crawl\profile\template_map_1page.json` |
+| Automation lessons | `C:\Code\CV_crawl\LESSONS.md` |
 | Output dir | `C:\Users\brans\OneDrive - University of Leeds\GraduateJobHunting\claude-cv-outputs\` |
 | Pipeline code | `C:\Code\CV_crawl\` |
 | uv project | `C:\Code\CV_crawl\` |
@@ -65,7 +68,7 @@ Runner stage graph:
 11. assemble
 12. validate_deterministic
 13. render_docx_pdf
-14. layout_gate_2pages
+14. layout_gate_2pages (expected-page gate)
 15. preview_feedback
 16. feedback_classify
 17. fact_patch_apply
@@ -77,6 +80,11 @@ Runner stage graph:
 ## ORCHESTRATOR - run this sequence
 
 ### Step 0 - Query ranked jobs from DB
+
+Before executing any shell/Python snippet, read `C:\Code\CV_crawl\LESSONS.md`
+and apply relevant rules (especially L001 for bash quoting).
+If a recurring automation failure appears, append a new lesson entry with
+symptom, root cause, and safe pattern.
 
 Run (let it fail loudly if DB is unavailable - no fallbacks):
 
@@ -129,6 +137,12 @@ Ask the user: **"Which job- Enter number (1-20) or R1-R5 to rerun:"**
 When the user selects an R-number, load that job from `recent_jobs` and proceed exactly
 as for a new job - all subsequent steps are identical. This allows regenerating or
 refining a CV for a job already in the pipeline.
+
+After job selection, ask:
+**"CV length for this run- Enter 1 or 2 pages:"**
+
+Set `cv_length_pages` to `1` or `2` and persist this in `C:\Code\CV_crawl\.cv-apply-meta-tmp.json`
+alongside `job_id`, `company`, and `job_title`.
 
 **Pre-run cleanup**: After the user selects a job, check whether temp files from a
 different job are present. Run:
@@ -350,7 +364,7 @@ uv run --project "C:/Code/CV_crawl" \
     --store "C:/Code/CV_crawl/.cv-harvest-store.json" \
     --keywords "C:/Code/CV_crawl/.cv-apply-jd-keywords-tmp.json" \
     --project-selections "C:/Code/CV_crawl/.cv-apply-project-selections.json" \
-    --template-map "C:/Code/CV_crawl/profile/template_map.json" \
+    --template-map "<resolved_template_map_path>" \
     --out "C:/Code/CV_crawl/.cv-apply-evidence-pack-tmp.json"
 ```
 
@@ -371,7 +385,7 @@ Generate bullet intent cards and project/header assignments from the evidence pa
 uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/slot_plan.py" \
     --evidence "C:/Code/CV_crawl/.cv-apply-evidence-pack-tmp.json" \
-    --template-map "C:/Code/CV_crawl/profile/template_map.json" \
+    --template-map "<resolved_template_map_path>" \
     --out "C:/Code/CV_crawl/.cv-apply-slot-plan-tmp.json"
 ```
 
@@ -464,6 +478,7 @@ You must realise each card as one bullet. Do not invent new cards.
 - No colons or semicolons anywhere in bullet text
 - Start each bullet with a strong past-tense action verb
 - Mirror JD keyword language exactly where the intent evidence supports it
+- If `keyword_target` is non-empty for a card, include that phrase verbatim (case-insensitive) in the bullet text
 - Never introduce claims outside primary_claim or secondary_claims for the same intent_id
 - No banned phrases: "fast-paced", "passionate about", "team player", "good", "bad", 
 "leveraged synergies", "results-driven", "dynamic team"
@@ -564,17 +579,18 @@ safe_role    = re.sub(r'[^\w\-]', '_', meta["job_title"])[:30]
 out_path = Path(rf"C:\Users\brans\OneDrive - University of Leeds\GraduateJobHunting\claude-cv-outputs\{safe_company}_{safe_role}_{datetime.now().strftime('%Y%m%d')}.docx")
 
 render_cv(
-    template_path=Path(r"C:\Code\CV_crawl\profile\cv_template.docx"),
-    template_map_path=Path(r"C:\Code\CV_crawl\profile\template_map.json"),
+    template_path=Path(RESOLVED_TEMPLATE_PATH),
+    template_map_path=Path(RESOLVED_TEMPLATE_MAP_PATH),
     selections=selections,
     job={"job_id": meta["job_id"], "title": meta["job_title"], "company": meta["company"]},
     output_path=out_path,
+    insert_page_break_before_technical_projects=RESOLVED_INSERT_PAGE_BREAK,
 )
 print(str(out_path))
 EOF
 ```
 
-Write `{"job_id": ..., "company": ..., "job_title": ...}` to `C:\Code\CV_crawl\.cv-apply-meta-tmp.json` before running.
+Write `{"job_id": ..., "company": ..., "job_title": ..., "cv_length_pages": 1|2}` to `C:\Code\CV_crawl\.cv-apply-meta-tmp.json` before running.
 Capture stdout as the DOCX path.
 
 ---
@@ -846,4 +862,3 @@ null in the DB (set in Step 8 above).
 The cover-letter-generation skill handles all sub-steps internally (address loading,
 story selection, writing, humanisation, approval loop, render, DB update). Follow
 its instructions from Step 1 through Step 9.
-
