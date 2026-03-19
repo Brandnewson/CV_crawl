@@ -21,6 +21,7 @@ dependencies = [
     "pymupdf>=1.27.2",
     "comtypes>=1.4.16",
     "pypdf>=6.9.0",
+    "openpyxl>=3.1.0",
 ]
 
 [dependency-groups]

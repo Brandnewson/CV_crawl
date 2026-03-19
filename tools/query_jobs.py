@@ -31,7 +31,7 @@ def _serialise_dates(rows: list[dict], *cols: str) -> None:
                 row[col] = row[col].isoformat()
 
 
-def query_jobs(min_score: float = 0.65, status: str = "new", limit: int = 20) -> list[dict]:
+def query_jobs(min_score: float = 0.65, status: str = "new", limit: int = 20, offset: int = 0) -> list[dict]:
     """Query jobs table and return ranked list. Raises on any failure."""
     db_url = os.environ.get("DATABASE_URL", "postgresql://localhost/jobpipeline")
 
@@ -57,8 +57,9 @@ def query_jobs(min_score: float = 0.65, status: str = "new", limit: int = 20) ->
                   AND js.status = %s
                 ORDER BY js.fit_score DESC
                 LIMIT %s
+                OFFSET %s
                 """,
-                (min_score, status, limit),
+                (min_score, status, limit, offset),
             )
             cols = [d[0] for d in cur.description]
             rows = [dict(zip(cols, row)) for row in cur.fetchall()]
@@ -112,6 +113,7 @@ def main() -> None:
     parser.add_argument("--min-score", type=float, default=0.65)
     parser.add_argument("--status", default="new")
     parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument("--offset", type=int, default=0)
     parser.add_argument(
         "--include-recent",
         action="store_true",
@@ -122,11 +124,11 @@ def main() -> None:
 
     if args.include_recent:
         output = {
-            "new_jobs": query_jobs(args.min_score, args.status, args.limit),
+            "new_jobs": query_jobs(args.min_score, args.status, args.limit, args.offset),
             "recent_jobs": query_recent_jobs(args.recent_limit),
         }
     else:
-        output = query_jobs(args.min_score, args.status, args.limit)
+        output = query_jobs(args.min_score, args.status, args.limit, args.offset)
 
     # Emit ASCII-safe JSON so callers using subprocess(text=True) with different
     # platform encodings can parse output reliably on Windows shells.

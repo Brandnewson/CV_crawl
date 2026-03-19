@@ -12,11 +12,11 @@ to that job, and produces a DOCX + PDF in `C:\Code\CV_crawl\output\`.
 | Experience store | `C:\Code\CV_crawl\.cv-harvest-store.json` |
 | Work experience bank | `C:\Code\CV_crawl\.cv-work-experience.json` |
 | Experience cache | `C:\Code\CV_crawl\.experience-cache.json` |
-| Evidence pack tmp | `C:\Code\CV_crawl\.cv-apply-evidence-pack-tmp.json` |
-| Slot plan tmp | `C:\Code\CV_crawl\.cv-apply-slot-plan-tmp.json` |
-| Coverage plan tmp | `C:\Code\CV_crawl\.cv-apply-coverage-plan-tmp.json` |
-| Coverage review tmp | `C:\Code\CV_crawl\.cv-apply-coverage-review-tmp.json` |
-| Checkpoint | `C:\Code\CV_crawl\.cv-apply-checkpoint.json` |
+| Evidence pack tmp | `C:\Code\CV_crawl\.tmp\.cv-apply-evidence-pack-tmp.json` |
+| Slot plan tmp | `C:\Code\CV_crawl\.tmp\.cv-apply-slot-plan-tmp.json` |
+| Coverage plan tmp | `C:\Code\CV_crawl\.tmp\.cv-apply-coverage-plan-tmp.json` |
+| Coverage review tmp | `C:\Code\CV_crawl\.tmp\.cv-apply-coverage-review-tmp.json` |
+| Checkpoint | `C:\Code\CV_crawl\.tmp\.cv-apply-checkpoint.json` |
 | Fact patches log | `C:\Code\CV_crawl\.cv-fact-patches.jsonl` |
 | Run metrics log | `C:\Code\CV_crawl\.cv-apply-run-metrics.jsonl` |
 | CV template (2-page) | `C:\Code\CV_crawl\profile\cv_template.docx` |
@@ -24,7 +24,8 @@ to that job, and produces a DOCX + PDF in `C:\Code\CV_crawl\output\`.
 | CV template (1-page) | `C:\Code\CV_crawl\reference_files\Branson Tay CV 1 page template.docx` |
 | Template map (1-page) | `C:\Code\CV_crawl\profile\template_map_1page.json` |
 | Automation lessons | `C:\Code\CV_crawl\LESSONS.md` |
-| Output dir | `C:\Users\brans\OneDrive - University of Leeds\GraduateJobHunting\claude-cv-outputs\` |
+| Temp dir | `C:\Code\CV_crawl\.tmp\` |
+| Output dir | `C:\Users\brans\OneDrive - University of Leeds\GraduateJobHunting\claude-cv-outputs\<Company>\` |
 | Pipeline code | `C:\Code\CV_crawl\` |
 | uv project | `C:\Code\CV_crawl\` |
 
@@ -90,11 +91,11 @@ and apply relevant rules (especially L001 for bash quoting).
 If a recurring automation failure appears, append a new lesson entry with
 symptom, root cause, and safe pattern.
 
-Run (let it fail loudly if DB is unavailable - no fallbacks):
+Track `current_offset` across pages (start at 0). Run (let it fail loudly if DB is unavailable - no fallbacks):
 
 ```
 uv run --project "C:/Code/CV_crawl" \
-    python "C:/Code/CV_crawl/tools/query_jobs.py" --min-score 0.65 --status new --limit 20 --include-recent
+    python "C:/Code/CV_crawl/tools/query_jobs.py" --min-score 0.65 --status new --limit 20 --offset {current_offset} --include-recent
 ```
 
 If the command exits non-zero, surface the error message verbatim and stop. Do not offer
@@ -103,18 +104,20 @@ any fallback or alternative - the DB must be running and populated before using 
 Parse the JSON output - it is a dict with keys `new_jobs` and `recent_jobs`.
 
 Display the new jobs like this (use the `fit_summary` field for the summary line, truncated
-to ~200 chars; use `job_url` for the link):
+to ~200 chars; use `location` for the city line; use `job_url` for the link):
 
 ```
 --------------------------------------------------------------
-NEW JOBS
+NEW JOBS  (page {current_offset // 20 + 1})
 --------------------------------------------------------------
  1  0.90  CHAOS Industries - Forward Deployed Engineer - Software
           Defence AI startup - deploy sensing/ML products to field customers.
+          London, UK
           https://jobs.chaosind.com/fde-software
 
  2  0.90  Procore Technologies - Forward Deployed Engineer (Datagrid)
           Construction SaaS - onsite customer data pipeline integration work.
+          New York, US
           https://...
 ...
 ```
@@ -136,7 +139,10 @@ R2  HappyRobot - Forward Deployed Engineer  [run 2026-03-11]
 
 If `recent_jobs` is empty, omit the RECENT RUNS section entirely.
 
-Ask the user: **"Which job- Enter number (1-20) or R1-R5 to rerun:"**
+Ask the user: **"Which job? Enter number, R1-R5 to rerun, or N for next 20:"**
+
+If the user enters `N`, increment `current_offset` by 20, re-run the query with the new offset,
+and re-display (RECENT RUNS section is omitted on page 2+; it always reflects the 5 most recent runs).
 
 When the user selects an R-number, load that job from `recent_jobs` and proceed exactly
 as for a new job - all subsequent steps are identical. This allows regenerating or
@@ -145,7 +151,7 @@ refining a CV for a job already in the pipeline.
 After job selection, ask:
 **"CV length for this run- Enter 1 or 2 pages:"**
 
-Set `cv_length_pages` to `1` or `2` and persist this in `C:\Code\CV_crawl\.cv-apply-meta-tmp.json`
+Set `cv_length_pages` to `1` or `2` and persist this in `C:\Code\CV_crawl\.tmp\.cv-apply-meta-tmp.json`
 alongside `job_id`, `company`, and `job_title`. Also persist a run-level `cv_variant_id`
 for controlled same-job rerun variation.
 
@@ -156,19 +162,19 @@ different job are present. Run:
 import json, os
 from pathlib import Path
 
-checkpoint = Path(r"C:\Code\CV_crawl\.cv-apply-checkpoint.json")
+checkpoint = Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-checkpoint.json")
 selected_job_id = SELECTED_JOB_ID  # replace with the actual job_id integer
 to_delete = [
-    r"C:\Code\CV_crawl\.cv-apply-evidence-pack-tmp.json",
-    r"C:\Code\CV_crawl\.cv-apply-slot-plan-tmp.json",
-    r"C:\Code\CV_crawl\.cv-apply-coverage-plan-tmp.json",
-    r"C:\Code\CV_crawl\.cv-apply-coverage-review-tmp.json",
-    r"C:\Code\CV_crawl\.cv-apply-jd-keywords-tmp.json",
-    r"C:\Code\CV_crawl\.cv-apply-project-selections.json",
-    r"C:\Code\CV_crawl\.cv-apply-selections-tmp.json",
-    r"C:\Code\CV_crawl\.cv-apply-meta-tmp.json",
-    r"C:\Code\CV_crawl\.cv-apply-context-tmp.json",
-    r"C:\Code\CV_crawl\.cv-apply-jd-tmp.txt",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-evidence-pack-tmp.json",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-slot-plan-tmp.json",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-coverage-plan-tmp.json",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-coverage-review-tmp.json",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-jd-keywords-tmp.json",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-project-selections.json",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-selections-tmp.json",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-meta-tmp.json",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-context-tmp.json",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-jd-tmp.txt",
 ]
 if checkpoint.exists():
     try:
@@ -196,14 +202,14 @@ if checkpoint.exists():
    If it exists and is non-empty, load it as `keywords` and `role_family`, print
    `Keywords loaded from cache (job {job_id}) — skipping extraction.`, display the
    keywords to the user, and skip straight to Step 2. Do NOT re-extract.
-3. If no cache hit: write the raw JD description to `C:\Code\CV_crawl\.cv-apply-jd-tmp.txt`.
+3. If no cache hit: write the raw JD description to `C:\Code\CV_crawl\.tmp\.cv-apply-jd-tmp.txt`.
 4. Extract keywords via the safe wrapper script (no inline Python):
 ```
 uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/extract_jd_keywords.py" \
-    --jd-path "C:/Code/CV_crawl/.cv-apply-jd-tmp.txt" \
+    --jd-path "C:/Code/CV_crawl/.tmp/.cv-apply-jd-tmp.txt" \
     --job-title "<job_title>" \
-    --out "C:/Code/CV_crawl/.cv-apply-jd-keywords-tmp.json" \
+    --out "C:/Code/CV_crawl/.tmp/.cv-apply-jd-keywords-tmp.json" \
     --cache-out "C:/Code/CV_crawl/.jd-keywords-cache/<job_id>.json"
 ```
 
@@ -270,7 +276,7 @@ Projects in your experience store:
 Enter numbers to EXCLUDE (e.g. "3,7") or flag as PARTIAL ("p2,p9"), or press Enter to use all:
 ```
 
-Parse the user's response and save to `C:\Code\CV_crawl\.cv-apply-project-selections.json`:
+Parse the user's response and save to `C:\Code\CV_crawl\.tmp\.cv-apply-project-selections.json`:
 
 ```json
 {
@@ -348,10 +354,10 @@ uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/evidence_select.py" \
     --work-exp "C:/Code/CV_crawl/.cv-work-experience.json" \
     --store "C:/Code/CV_crawl/.cv-harvest-store.json" \
-    --keywords "C:/Code/CV_crawl/.cv-apply-jd-keywords-tmp.json" \
-    --project-selections "C:/Code/CV_crawl/.cv-apply-project-selections.json" \
+    --keywords "C:/Code/CV_crawl/.tmp/.cv-apply-jd-keywords-tmp.json" \
+    --project-selections "C:/Code/CV_crawl/.tmp/.cv-apply-project-selections.json" \
     --template-map "<resolved_template_map_path>" \
-    --out "C:/Code/CV_crawl/.cv-apply-evidence-pack-tmp.json"
+    --out "C:/Code/CV_crawl/.tmp/.cv-apply-evidence-pack-tmp.json"
 ```
 
 Output contract (`.cv-apply-evidence-pack-tmp.json`):
@@ -370,9 +376,9 @@ Generate bullet intent cards and project/header assignments from the evidence pa
 ```
 uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/slot_plan.py" \
-    --evidence "C:/Code/CV_crawl/.cv-apply-evidence-pack-tmp.json" \
+    --evidence "C:/Code/CV_crawl/.tmp/.cv-apply-evidence-pack-tmp.json" \
     --template-map "<resolved_template_map_path>" \
-    --out "C:/Code/CV_crawl/.cv-apply-slot-plan-tmp.json"
+    --out "C:/Code/CV_crawl/.tmp/.cv-apply-slot-plan-tmp.json"
 ```
 
 Output contract (`.cv-apply-slot-plan-tmp.json`):
@@ -416,10 +422,10 @@ Run:
 ```
 uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/coverage_plan.py" \
-    --slot-plan "C:/Code/CV_crawl/.cv-apply-slot-plan-tmp.json" \
-    --jd-keywords "C:/Code/CV_crawl/.cv-apply-jd-keywords-tmp.json" \
-    --out "C:/Code/CV_crawl/.cv-apply-slot-plan-tmp.json" \
-    --report-out "C:/Code/CV_crawl/.cv-apply-coverage-plan-tmp.json"
+    --slot-plan "C:/Code/CV_crawl/.tmp/.cv-apply-slot-plan-tmp.json" \
+    --jd-keywords "C:/Code/CV_crawl/.tmp/.cv-apply-jd-keywords-tmp.json" \
+    --out "C:/Code/CV_crawl/.tmp/.cv-apply-slot-plan-tmp.json" \
+    --report-out "C:/Code/CV_crawl/.tmp/.cv-apply-coverage-plan-tmp.json"
 ```
 
 Rules:
@@ -431,7 +437,7 @@ Rules:
 
 ### Step 4.9 - Coverage review gate (mandatory before drafting)
 
-Read `C:\Code\CV_crawl\.cv-apply-coverage-plan-tmp.json` and show:
+Read `C:\Code\CV_crawl\.tmp\.cv-apply-coverage-plan-tmp.json` and show:
 - uncovered required terms
 - uncovered nice-to-have terms
 - support evidence cards suggested for each uncovered term
@@ -441,7 +447,7 @@ Ask user whether to:
 - provide additional facts / request reallocation.
 
 Persist acknowledgement to:
-`C:\Code\CV_crawl\.cv-apply-coverage-review-tmp.json`
+`C:\Code\CV_crawl\.tmp\.cv-apply-coverage-review-tmp.json`
 with at least:
 ```json
 {"status":"approved","notes":"..."}
@@ -468,7 +474,7 @@ slot plan (this avoids sending the full 64KB file into the sub-agent's context):
 import json
 from pathlib import Path
 
-sp = json.loads(Path(r"C:\Code\CV_crawl\.cv-apply-slot-plan-tmp.json").read_text())
+sp = json.loads(Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-slot-plan-tmp.json").read_text())
 writer_context = {
     "hidden_projects": sp["hidden_projects"],
     "header_swaps": sp["header_swaps"],
@@ -564,14 +570,14 @@ Every approved bullet must include intent_id and provenance.
 
 ### Step 5b - Deterministic validation gate (length + verb + anti-redundancy)
 
-After receiving the CV Writer's JSON output, write it to `C:\Code\CV_crawl\.cv-apply-selections-tmp.json`,
+After receiving the CV Writer's JSON output, write it to `C:\Code\CV_crawl\.tmp\.cv-apply-selections-tmp.json`,
 then run the canonical validator contract:
 
 ```
 uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/tools/validate_cv_output.py" \
-    --selections "C:/Code/CV_crawl/.cv-apply-selections-tmp.json" \
-    --slot-plan "C:/Code/CV_crawl/.cv-apply-slot-plan-tmp.json" \
+    --selections "C:/Code/CV_crawl/.tmp/.cv-apply-selections-tmp.json" \
+    --slot-plan "C:/Code/CV_crawl/.tmp/.cv-apply-slot-plan-tmp.json" \
     --work-exp "C:/Code/CV_crawl/.cv-work-experience.json"
 ```
 
@@ -602,14 +608,14 @@ Only proceed to Step 6 when `validate_cv_output.py` returns `ok: true`.
 ```
 uv run --project "C:/Code/CV_crawl" \
     python "C:/Code/CV_crawl/render_cv.py" \
-    --meta-path "C:/Code/CV_crawl/.cv-apply-meta-tmp.json" \
-    --selections-path "C:/Code/CV_crawl/.cv-apply-selections-tmp.json" \
+    --meta-path "C:/Code/CV_crawl/.tmp/.cv-apply-meta-tmp.json" \
+    --selections-path "C:/Code/CV_crawl/.tmp/.cv-apply-selections-tmp.json" \
     --template-path "<resolved_template_path>" \
     --template-map-path "<resolved_template_map_path>" \
     --insert-page-break-before-technical-projects "<true_or_false>"
 ```
 
-Write `{"job_id": ..., "company": ..., "job_title": ..., "cv_length_pages": 1|2}` to `C:\Code\CV_crawl\.cv-apply-meta-tmp.json` before running.
+Write `{"job_id": ..., "company": ..., "job_title": ..., "cv_length_pages": 1|2}` to `C:\Code\CV_crawl\.tmp\.cv-apply-meta-tmp.json` before running.
 Capture stdout as the DOCX path.
 
 ---
@@ -644,7 +650,7 @@ def normalise_for_check(text: str) -> str:
     return re.sub(r'[\u200b\u200c\u200d\ufeff]', '', text)
 
 doc = Document("<docx_path>")
-selections = json.loads(Path(r"C:\Code\CV_crawl\.cv-apply-selections-tmp.json").read_text(encoding="utf-8"))
+selections = json.loads(Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-selections-tmp.json").read_text(encoding="utf-8"))
 
 # Build expected state from selections
 expected_headers = {s["subsection"]: s["text"] for s in selections.get("header_swaps", [])}
@@ -803,7 +809,19 @@ uv run --project "C:/Code/CV_crawl" \
 - Fallback to `cv_path` when legacy schema is in use
 - Never overwrite `cover_letter_path` during CV generation
 
-3. Print final summary:
+3. Track application in Excel tracker:
+```
+uv run --project "C:/Code/CV_crawl" \
+    python "C:/Code/CV_crawl/tools/track_application.py" \
+    --job-id "<job_id>" \
+    --company "<company>" \
+    --job-title "<job_title>" \
+    --city "<location field from Step 0>" \
+    --description "<first 2000 chars of raw JD description>" \
+    --job-url "<job_url>"
+```
+
+4. Print final summary:
 ```
 [x] CV generated for [company] - [job_title]
   DOCX: [out_path]
@@ -811,18 +829,18 @@ uv run --project "C:/Code/CV_crawl" \
   Keywords covered: [N of M required keywords]
 ```
 
-4. **Post-run cleanup** — delete large intermediate artifacts (evidence pack and slot plan
+5. **Post-run cleanup** — delete large intermediate artifacts (evidence pack and slot plan
    are no longer needed; selections and meta are kept for Step 9 cover letter handoff):
 
 ```python
 import os
 for f in [
-    r"C:\Code\CV_crawl\.cv-apply-evidence-pack-tmp.json",
-    r"C:\Code\CV_crawl\.cv-apply-slot-plan-tmp.json",
-    r"C:\Code\CV_crawl\.cv-apply-coverage-plan-tmp.json",
-    r"C:\Code\CV_crawl\.cv-apply-coverage-review-tmp.json",
-    r"C:\Code\CV_crawl\.cv-apply-jd-keywords-tmp.json",
-    r"C:\Code\CV_crawl\.cv-apply-jd-tmp.txt",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-evidence-pack-tmp.json",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-slot-plan-tmp.json",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-coverage-plan-tmp.json",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-coverage-review-tmp.json",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-jd-keywords-tmp.json",
+    r"C:\Code\CV_crawl\.tmp\.cv-apply-jd-tmp.txt",
 ]:
     try:
         os.remove(f)

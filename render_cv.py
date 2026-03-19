@@ -12,8 +12,8 @@ from agent.cv_renderer import render_cv
 from agent.validators import UserSelections
 
 
-DEFAULT_META_PATH = Path(r"C:\Code\CV_crawl\.cv-apply-meta-tmp.json")
-DEFAULT_SELECTIONS_PATH = Path(r"C:\Code\CV_crawl\.cv-apply-selections-tmp.json")
+DEFAULT_META_PATH = Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-meta-tmp.json")
+DEFAULT_SELECTIONS_PATH = Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-selections-tmp.json")
 DEFAULT_TEMPLATE_PATH = Path(r"C:\Code\CV_crawl\profile\cv_template.docx")
 DEFAULT_TEMPLATE_MAP_PATH = Path(r"C:\Code\CV_crawl\profile\template_map.json")
 DEFAULT_OUTPUT_DIR = Path(
@@ -29,7 +29,7 @@ def _default_output_path(meta: dict) -> Path:
     safe_company = re.sub(r"[^\w\-]", "_", str(meta["company"]))
     safe_role = re.sub(r"[^\w\-]", "_", str(meta["job_title"]))[:30]
     stamp = datetime.now().strftime("%Y%m%d")
-    return DEFAULT_OUTPUT_DIR / f"{safe_company}_{safe_role}_{stamp}.docx"
+    return DEFAULT_OUTPUT_DIR / safe_company / f"{safe_company}_{safe_role}_{stamp}.docx"
 
 
 def parse_args() -> argparse.Namespace:

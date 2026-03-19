@@ -6,8 +6,14 @@ import re
 from pathlib import Path
 
 
+def ensure_tmp_dir() -> None:
+    Path(r"C:\Code\CV_crawl\.tmp").mkdir(exist_ok=True)
+
+
+ensure_tmp_dir()
+
 CHECKPOINT_SCHEMA_VERSION = 2
-DEFAULT_CHECKPOINT_PATH = Path(r"C:\Code\CV_crawl\.cv-apply-checkpoint.json")
+DEFAULT_CHECKPOINT_PATH = Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-checkpoint.json")
 DEFAULT_FACT_PATCH_LOG = Path(r"C:\Code\CV_crawl\.cv-fact-patches.jsonl")
 DEFAULT_METRICS_LOG = Path(r"C:\Code\CV_crawl\.cv-apply-run-metrics.jsonl")
 
@@ -47,14 +53,14 @@ CANONICAL_FACT_STORES = {
 }
 
 ARTIFACT_DEFAULT_PATHS = {
-    "jd_keywords": Path(r"C:\Code\CV_crawl\.cv-apply-jd-keywords-tmp.json"),
-    "project_selections": Path(r"C:\Code\CV_crawl\.cv-apply-project-selections.json"),
-    "evidence_packs": Path(r"C:\Code\CV_crawl\.cv-apply-evidence-pack-tmp.json"),
-    "slot_plan": Path(r"C:\Code\CV_crawl\.cv-apply-slot-plan-tmp.json"),
-    "coverage_plan": Path(r"C:\Code\CV_crawl\.cv-apply-coverage-plan-tmp.json"),
-    "coverage_review": Path(r"C:\Code\CV_crawl\.cv-apply-coverage-review-tmp.json"),
-    "draft_sections": Path(r"C:\Code\CV_crawl\.cv-apply-selections-tmp.json"),
-    "meta": Path(r"C:\Code\CV_crawl\.cv-apply-meta-tmp.json"),
+    "jd_keywords": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-jd-keywords-tmp.json"),
+    "project_selections": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-project-selections.json"),
+    "evidence_packs": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-evidence-pack-tmp.json"),
+    "slot_plan": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-slot-plan-tmp.json"),
+    "coverage_plan": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-coverage-plan-tmp.json"),
+    "coverage_review": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-coverage-review-tmp.json"),
+    "draft_sections": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-selections-tmp.json"),
+    "meta": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-meta-tmp.json"),
 }
 
 STAGE_ORDER = [

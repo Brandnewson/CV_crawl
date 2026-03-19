@@ -51,5 +51,8 @@ output/
 .cv-fact-patches.jsonl
 .cv-apply-run-metrics.jsonl
 
+# Pipeline temp directory
+.tmp/
+
 # Local Claude settings (machine-specific)
 .claude/settings.local.json
