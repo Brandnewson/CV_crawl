@@ -18,6 +18,9 @@ CV_FORMAT_PROFILES = {
         "template_map_path": Path(r"C:\Code\CV_crawl\profile\template_map.json"),
         "expected_pages": 2,
         "insert_page_break_before_technical_projects": True,
+        "bullet_length_min": 80,
+        "bullet_length_max": 115,
+        "compact_length_max": 110,
     },
     1: {
         "name": "1-page",
@@ -25,6 +28,9 @@ CV_FORMAT_PROFILES = {
         "template_map_path": Path(r"C:\Code\CV_crawl\profile\template_map_1page.json"),
         "expected_pages": 1,
         "insert_page_break_before_technical_projects": False,
+        "bullet_length_min": 80,
+        "bullet_length_max": 105,
+        "compact_length_max": 100,
     },
 }
 
@@ -85,3 +91,22 @@ def normalize_subsection_id(section: str, subsection: str) -> str:
 
 def stages_to_invalidate(trigger: str) -> list[str]:
     return sorted(INVALIDATION_RULES.get(trigger, set()), key=stage_index)
+
+
+def normalise_keyword_target(value: str) -> str:
+    """Normalise a keyword target for deterministic phrase matching."""
+    text = re.sub(r"\s+", " ", str(value or "").strip().lower())
+    text = text.strip(".,;:!?()[]{}\"'")
+    if not text:
+        return ""
+    text = re.sub(r"\s*/\s*", " / ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def target_in_text(target: str, text: str) -> bool:
+    """Case-insensitive literal phrase check against normalised whitespace."""
+    target_n = normalise_keyword_target(target)
+    if not target_n:
+        return True
+    haystack = re.sub(r"\s+", " ", str(text or "").strip().lower())
+    return target_n in haystack

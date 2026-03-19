@@ -113,6 +113,12 @@ def validate_redundancy(
     failed: dict[tuple[str, str, int], dict[str, Any]] = {}
     for (section, subsection), bucket in grouped.items():
         bucket = sorted(bucket, key=lambda b: int(b.get("slot_index", 0)))
+        concept_freq: defaultdict[str, int] = defaultdict(int)
+        for bullet in bucket:
+            for concept in _concept_tokens(bullet.get("text", "")):
+                concept_freq[concept] += 1
+        suppressed_terms = {term for term, freq in concept_freq.items() if freq >= 2}
+
         for i in range(len(bucket)):
             for j in range(i + 1, len(bucket)):
                 b1 = bucket[i]
@@ -122,10 +128,13 @@ def validate_redundancy(
                 lex = _jaccard(_tokens(t1), _tokens(t2))
                 ngram = _jaccard(_char_ngrams(t1), _char_ngrams(t2))
                 sem = difflib.SequenceMatcher(a=_norm(t1), b=_norm(t2)).ratio()
-                concept_overlap = len(_concept_tokens(t1) & _concept_tokens(t2))
+                c1 = _concept_tokens(t1) - suppressed_terms
+                c2 = _concept_tokens(t2) - suppressed_terms
+                concept_overlap = len(c1 & c2)
                 semantic_duplicate = (
-                    (lex >= 0.55 and (sem >= 0.74 or ngram >= 0.5))
-                    or (concept_overlap >= 3 and sem >= 0.3)
+                    (lex >= 0.68 and sem >= 0.8)
+                    or (ngram >= 0.62 and sem >= 0.78)
+                    or (concept_overlap >= 4 and sem >= 0.58 and lex >= 0.42)
                 )
                 if semantic_duplicate:
                     redundant_pairs.append(
@@ -139,6 +148,7 @@ def validate_redundancy(
                             "semantic_ratio": round(sem, 3),
                             "ngram_jaccard": round(ngram, 3),
                             "concept_overlap": concept_overlap,
+                            "suppressed_concepts": sorted(suppressed_terms),
                             "text_a": t1,
                             "text_b": t2,
                         }
@@ -235,7 +245,10 @@ def validate_redundancy(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Validate semantic redundancy in approved CV bullets")
+    parser = argparse.ArgumentParser(
+        description="Validate semantic redundancy in approved CV bullets",
+        allow_abbrev=False,
+    )
     parser.add_argument("--selections", required=True, help="Path to selections JSON")
     parser.add_argument("--slot-plan", help="Optional path to slot plan JSON")
     parser.add_argument("--fail-on-issues", action="store_true", help="Exit code 2 when validation fails")

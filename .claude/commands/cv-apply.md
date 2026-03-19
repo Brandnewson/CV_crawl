@@ -190,31 +190,19 @@ if checkpoint.exists():
    `Keywords loaded from cache (job {job_id}) — skipping extraction.`, display the
    keywords to the user, and skip straight to Step 2. Do NOT re-extract.
 3. If no cache hit: write the raw JD description to `C:\Code\CV_crawl\.cv-apply-jd-tmp.txt`.
-4. Attempt keyword extraction via subprocess:
+4. Extract keywords via the safe wrapper script (no inline Python):
 ```
-uv run --project "C:/Code/CV_crawl" python - <<'EOF'
-import sys, json
-sys.path.insert(0, r"C:\Code\CV_crawl")
-from tools.clean_jd import clean_jd
-from agent.jd_parser import extract_keywords, classify_role_family
-
-raw = open(r"C:\Code\CV_crawl\.cv-apply-jd-tmp.txt", encoding="utf-8").read()
-jd_clean = clean_jd(raw)
-keywords = extract_keywords(jd_clean)
-role_family = classify_role_family(jd_clean)
-print(json.dumps({"keywords": keywords, "role_family": role_family}))
-EOF
+uv run --project "C:/Code/CV_crawl" \
+    python "C:/Code/CV_crawl/tools/extract_jd_keywords.py" \
+    --jd-path "C:/Code/CV_crawl/.cv-apply-jd-tmp.txt" \
+    --job-title "<job_title>" \
+    --out "C:/Code/CV_crawl/.cv-apply-jd-keywords-tmp.json" \
+    --cache-out "C:/Code/CV_crawl/.jd-keywords-cache/<job_id>.json"
 ```
 
-**If the subprocess fails for any reason** (non-zero exit, import error, missing file, etc.), the orchestrator itself reads `.cv-apply-jd-tmp.txt` and extracts keywords directly:
-- `required`: all specific technical terms, tools, languages, platforms, methodologies, and role-specific phrases marked "must have" or repeated >=2x in the JD - aim for 15-25 items
-- `nice_to_have`: all remaining non-trivial technical or domain terms - aim for 10-15 items
-- Preserve exact JD phrasing (e.g. "forward deployed", "customer-facing engineering", "LLM prompting") - do not normalise or paraphrase
+Parse the JSON output to get `keywords` and `role_family`.
 
-Parse the JSON output (or orchestrator extraction) to get `keywords` and `role_family`.
-
-Write this to `C:\Code\CV_crawl\.cv-apply-jd-keywords-tmp.json` **and also** to
-`C:\Code\CV_crawl\.jd-keywords-cache\{job_id}.json` (create the directory if needed):
+Output contract:
 
 ```json
 {
@@ -241,26 +229,11 @@ Nice to have: Kafka, MATLAB, F1 experience, ...
 Load all three files directly (no subprocess needed - read them as part of orchestrator context):
 
 ```
-uv run --project "C:/Code/CV_crawl" python - <<'EOF'
-import json, sys
-from pathlib import Path
-
-store_path = Path(r"C:\Code\CV_crawl\.cv-harvest-store.json")
-if not store_path.exists():
-    print("ERROR: .cv-harvest-store.json not found. Run /cv-harvest first.", file=sys.stderr)
-    sys.exit(1)
-
-work_exp_path = Path(r"C:\Code\CV_crawl\.cv-work-experience.json")
-if not work_exp_path.exists():
-    print("ERROR: .cv-work-experience.json not found.", file=sys.stderr)
-    sys.exit(1)
-
-cache_path = Path(r"C:\Code\CV_crawl\.experience-cache.json")
-store = json.loads(store_path.read_text(encoding="utf-8"))
-work_exp = json.loads(work_exp_path.read_text(encoding="utf-8"))
-cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path.exists() else {}
-print(json.dumps({"store": store, "work_exp": work_exp, "cache": cache}))
-EOF
+uv run --project "C:/Code/CV_crawl" \
+    python "C:/Code/CV_crawl/tools/load_cv_sources.py" \
+    --store-path "C:/Code/CV_crawl/.cv-harvest-store.json" \
+    --work-exp-path "C:/Code/CV_crawl/.cv-work-experience.json" \
+    --cache-path "C:/Code/CV_crawl/.experience-cache.json"
 ```
 
 ---
@@ -562,32 +535,13 @@ Only proceed to Step 6 when `validate_cv_output.py` returns `ok: true`.
 ### Step 6 - Render DOCX
 
 ```
-uv run --project "C:/Code/CV_crawl" python - <<'EOF'
-import json, re, sys
-from pathlib import Path
-from datetime import datetime
-
-from agent.cv_renderer import render_cv
-from agent.validators import UserSelections
-
-meta  = json.loads(open(r"C:\Code\CV_crawl\.cv-apply-meta-tmp.json",       encoding="utf-8").read())
-sdata = json.loads(open(r"C:\Code\CV_crawl\.cv-apply-selections-tmp.json", encoding="utf-8").read())
-selections = UserSelections(**sdata)
-
-safe_company = re.sub(r'[^\w\-]', '_', meta["company"])
-safe_role    = re.sub(r'[^\w\-]', '_', meta["job_title"])[:30]
-out_path = Path(rf"C:\Users\brans\OneDrive - University of Leeds\GraduateJobHunting\claude-cv-outputs\{safe_company}_{safe_role}_{datetime.now().strftime('%Y%m%d')}.docx")
-
-render_cv(
-    template_path=Path(RESOLVED_TEMPLATE_PATH),
-    template_map_path=Path(RESOLVED_TEMPLATE_MAP_PATH),
-    selections=selections,
-    job={"job_id": meta["job_id"], "title": meta["job_title"], "company": meta["company"]},
-    output_path=out_path,
-    insert_page_break_before_technical_projects=RESOLVED_INSERT_PAGE_BREAK,
-)
-print(str(out_path))
-EOF
+uv run --project "C:/Code/CV_crawl" \
+    python "C:/Code/CV_crawl/render_cv.py" \
+    --meta-path "C:/Code/CV_crawl/.cv-apply-meta-tmp.json" \
+    --selections-path "C:/Code/CV_crawl/.cv-apply-selections-tmp.json" \
+    --template-path "<resolved_template_path>" \
+    --template-map-path "<resolved_template_map_path>" \
+    --insert-page-break-before-technical-projects "<true_or_false>"
 ```
 
 Write `{"job_id": ..., "company": ..., "job_title": ..., "cv_length_pages": 1|2}` to `C:\Code\CV_crawl\.cv-apply-meta-tmp.json` before running.
@@ -599,28 +553,12 @@ Capture stdout as the DOCX path.
 
 **a. Convert rendered DOCX -> images:**
 ```
-uv run --project "C:/Code/CV_crawl" python -c "
-import comtypes.client, os, fitz, sys
-
-docx_path = sys.argv[1]
-pdf_path = docx_path.replace('.docx', '_check.pdf')
-
-word = comtypes.client.CreateObject('Word.Application')
-word.Visible = False
-doc = word.Documents.Open(os.path.abspath(docx_path))
-doc.SaveAs(os.path.abspath(pdf_path), FileFormat=17)
-doc.Close()
-word.Quit()
-
-pdf = fitz.open(pdf_path)
-for i, page in enumerate(pdf):
-    pix = page.get_pixmap(matrix=fitz.Matrix(150/72, 150/72))
-    pix.save(f'cv_check_page_{i+1}.jpg')
-pdf.close()
-print(pdf_path)
-" "<docx_path>"
+uv run --project "C:/Code/CV_crawl" \
+    python "C:/Code/CV_crawl/tools/render_cv_check_images.py" \
+    --docx-path "<docx_path>" \
+    --output-dir "C:/Code/CV_crawl"
 ```
-This produces `cv_check_page_1.jpg`, `cv_check_page_2.jpg`, etc. in the current working directory.
+This returns JSON with `page_count`, `pdf_path`, and `image_paths` for deterministic page checks + visual inspection.
 
 **b. Visual inspection:**
 Read every page image with the Read tool. Visually identify any bullet point that spills onto a second line.

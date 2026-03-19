@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from cv_apply_contract import normalize_subsection_id
+from cv_apply_contract import normalize_subsection_id, normalise_keyword_target
 
 WORD_RE = re.compile(r"[a-z0-9\+\#\.-]+")
 
@@ -140,6 +140,51 @@ def _header_swap_text(pack: dict[str, Any]) -> str:
     return f"{title} | {', '.join(tech[:6])}"
 
 
+def _normalise_keyword_candidates(raw_keyword: str) -> list[str]:
+    cleaned = normalise_keyword_target(raw_keyword)
+    if not cleaned:
+        return []
+    # Split compound targets like "rag / vector databases" into distinct options.
+    split_terms = re.split(r"\s*(?:/|,|\bor\b|\band\b)\s*", cleaned)
+    candidates = []
+    for term in split_terms:
+        t = normalise_keyword_target(term)
+        if not t:
+            continue
+        if len(t.split()) > 6:
+            continue
+        candidates.append(t)
+    deduped: list[str] = []
+    for candidate in candidates:
+        if candidate not in deduped:
+            deduped.append(candidate)
+    return deduped
+
+
+def _pick_keyword_target(
+    claim: dict[str, Any],
+    required_keywords: list[str],
+) -> tuple[str, str]:
+    required_norm = [normalise_keyword_target(k) for k in required_keywords if normalise_keyword_target(k)]
+    claim_links = [str(v) for v in claim.get("keyword_links", []) if str(v).strip()]
+    expanded: list[str] = []
+    for raw in claim_links:
+        expanded.extend(_normalise_keyword_candidates(raw))
+    if not expanded:
+        return "", "none"
+
+    for required in required_norm:
+        if required in expanded:
+            return required, "required_exact"
+
+    # Prefer a concise single target to avoid impossible verbatim checks.
+    for candidate in expanded:
+        if "/" in candidate:
+            continue
+        return candidate, "claim_keyword_first_clean"
+    return "", "none"
+
+
 def _pick_intents_for_subsection(
     section: str,
     subsection: str,
@@ -212,13 +257,10 @@ def _pick_intents_for_subsection(
             if len(secondary_ids) == 2:
                 break
 
-        keyword_target = ""
-        for kw in chosen.get("keyword_links", []):
-            if kw in required_keywords:
-                keyword_target = kw
-                break
-        if not keyword_target and chosen.get("keyword_links"):
-            keyword_target = chosen["keyword_links"][0]
+        keyword_target, keyword_target_source = _pick_keyword_target(
+            claim=chosen,
+            required_keywords=required_keywords,
+        )
 
         must_include = [v for v in [chosen.get("action")] + chosen.get("method_tool", []) if v][:3]
         must_avoid = []
@@ -236,6 +278,7 @@ def _pick_intents_for_subsection(
                 "primary_claim_id": chosen["claim_id"],
                 "secondary_claim_ids": secondary_ids,
                 "keyword_target": keyword_target,
+                "keyword_target_source": keyword_target_source,
                 "must_include": must_include,
                 "must_avoid": must_avoid,
             }
@@ -326,6 +369,7 @@ def build_slot_plan(evidence: dict[str, Any], template_map: dict[str, Any]) -> d
                 "slot_index": card["slot_index"],
                 "intent_type": card["intent_type"],
                 "keyword_target": card["keyword_target"],
+                "keyword_target_source": card.get("keyword_target_source", "none"),
                 "primary_claim": {
                     "claim_id": card["primary_claim_id"],
                     "text": primary.get("claim_text", ""),
@@ -350,7 +394,10 @@ def build_slot_plan(evidence: dict[str, Any], template_map: dict[str, Any]) -> d
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate slot plan with diversity constraints")
+    parser = argparse.ArgumentParser(
+        description="Generate slot plan with diversity constraints",
+        allow_abbrev=False,
+    )
     parser.add_argument("--evidence", required=True, help="Path to evidence_select output JSON")
     parser.add_argument("--template-map", required=True, help="Path to template_map.json")
     parser.add_argument("--out", required=True, help="Output path for slot plan JSON")

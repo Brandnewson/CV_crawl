@@ -51,13 +51,10 @@ nice_to_have_keywords:
   - physics simulation
   - digital twins
   - autonomy
-  - robotics perception
   - LLMs
-  - control systems
   - Kubernetes
   - cloud infrastructure
   - Python
-  - Rust
   - real-time systems
   - robotics
   - inference
@@ -74,6 +71,9 @@ hard_exclusions:
     - junior
     - intern
     - internship
+    - VP
+    - defence
+
   description_keywords:
     - unpaid
     - graduate scheme
@@ -97,4 +97,3 @@ core_strengths:
   - Full-stack engineering for technical users (React + backend APIs)
   - Deploying and managing containerised engineering applications in cloud environments
   - Collaborating across software, data science, and engineering teams to operationalise ML/AI systems
-  

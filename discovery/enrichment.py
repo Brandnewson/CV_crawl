@@ -161,7 +161,13 @@ def extract_technologies_deterministic(job_description: str) -> list[str]:
 def extract_skills_and_abilities_with_claude(job_description: str) -> dict:
     """Use Claude once to extract skills and abilities."""
     if not job_description or len(job_description.strip()) < 50:
-        return {"skills": [], "abilities": []}
+        return {
+            "skills": [],
+            "abilities": [],
+            "llm_used": False,
+            "fallback_used": True,
+            "error_type": "description_too_short",
+        }
 
     client = anthropic.Anthropic()
     prompt = SKILL_ABILITY_PROMPT.format(job_description=job_description[:9000])
@@ -197,13 +203,28 @@ def extract_skills_and_abilities_with_claude(job_description: str) -> dict:
         return {
             "skills": list(dict.fromkeys(skills))[:12],
             "abilities": list(dict.fromkeys(abilities))[:12],
+            "llm_used": True,
+            "fallback_used": False,
+            "error_type": None,
         }
     except (json.JSONDecodeError, KeyError, IndexError, TypeError) as e:
         print(f"Enrichment LLM parsing error: {e}")
-        return {"skills": [], "abilities": []}
+        return {
+            "skills": [],
+            "abilities": [],
+            "llm_used": False,
+            "fallback_used": True,
+            "error_type": "llm_parse_error",
+        }
     except Exception as e:
         print(f"Enrichment LLM call failed: {e}")
-        return {"skills": [], "abilities": []}
+        return {
+            "skills": [],
+            "abilities": [],
+            "llm_used": False,
+            "fallback_used": True,
+            "error_type": type(e).__name__,
+        }
 
 
 def build_enrichment(job_description_raw: str) -> dict:
@@ -216,6 +237,9 @@ def build_enrichment(job_description_raw: str) -> dict:
         "technologies": technologies,
         "skills": llm_enrichment.get("skills", []),
         "abilities": llm_enrichment.get("abilities", []),
+        "llm_used": bool(llm_enrichment.get("llm_used", False)),
+        "fallback_used": bool(llm_enrichment.get("fallback_used", False)),
+        "error_type": llm_enrichment.get("error_type"),
         "version": ENRICHMENT_VERSION,
         "enriched_at": datetime.now(timezone.utc).isoformat(),
     }

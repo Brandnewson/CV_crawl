@@ -33,9 +33,11 @@ from cv_apply_contract import (
     stage_index,
     stages_to_invalidate,
 )
+from compact_cv_bullets import compact_cv_bullets
 from docx_to_pdf import convert as convert_docx_to_pdf
 from evidence_select import build_evidence
 from fact_patch import apply_patch_if_safe, classify_feedback
+from reconcile_slot_plan_targets import reconcile_slot_plan_targets
 from slot_plan import build_slot_plan
 from update_db import persist_cv_paths
 from validate_cv_output import validate as validate_cv_output
@@ -172,6 +174,9 @@ class CVApplyRunner:
             "template_map_path": str(Path(template_map_path)),
             "expected_pages": expected_pages,
             "insert_page_break_before_technical_projects": insert_break,
+            "bullet_length_min": int(profile_defaults["bullet_length_min"]),
+            "bullet_length_max": int(profile_defaults["bullet_length_max"]),
+            "compact_length_max": int(profile_defaults["compact_length_max"]),
         }
 
     def _ensure_cv_format_profile(self, meta: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -235,6 +240,78 @@ class CVApplyRunner:
             "factual_patch_count": len(self.ckpt.get("fact_patch_refs", [])),
         }
         _append_jsonl(self.args.metrics_log, payload)
+
+    def _current_cv_profile(self) -> dict[str, Any]:
+        return self.ckpt["artifacts"].get("cv_format_profile") or self._ensure_cv_format_profile()
+
+    @staticmethod
+    def _length_limits(cv_format_profile: dict[str, Any]) -> dict[str, int]:
+        return {
+            "min": int(cv_format_profile.get("bullet_length_min", 80)),
+            "max": int(cv_format_profile.get("bullet_length_max", 115)),
+        }
+
+    def _render_with_profile(
+        self,
+        cv_format_profile: dict[str, Any],
+        output_docx_path: str | None = None,
+    ) -> dict[str, Any]:
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT_DIR / "render_cv.py"),
+                "--template-path",
+                str(cv_format_profile["template_path"]),
+                "--template-map-path",
+                str(cv_format_profile["template_map_path"]),
+                "--insert-page-break-before-technical-projects",
+                "true" if cv_format_profile["insert_page_break_before_technical_projects"] else "false",
+                *(
+                    ["--output-path", output_docx_path]
+                    if output_docx_path
+                    else []
+                ),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if completed.returncode != 0:
+            raise StageBlockedError(f"render_cv failed: {completed.stderr.strip()}")
+        docx_path = completed.stdout.strip().splitlines()[-1].strip()
+        pdf_path = str(convert_docx_to_pdf(docx_path))
+        return {
+            "docx_path": docx_path,
+            "pdf_path": pdf_path,
+            "template_path": cv_format_profile["template_path"],
+            "template_map_path": cv_format_profile["template_map_path"],
+            "expected_pages": cv_format_profile["expected_pages"],
+        }
+
+    def _reconcile_and_validate(
+        self,
+        selections: dict[str, Any],
+        slot_plan: dict[str, Any],
+        work_exp: dict[str, Any],
+        cv_format_profile: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+        raw_keywords = self.ckpt["artifacts"].get("jd_keywords") or _load_json(self.args.keywords_path, {})
+        reconciled_slot_plan, reconcile_report = reconcile_slot_plan_targets(
+            slot_plan=slot_plan,
+            selections=selections,
+            raw_keywords=raw_keywords,
+        )
+        if reconcile_report.get("changed"):
+            _write_json(ARTIFACT_DEFAULT_PATHS["slot_plan"], reconciled_slot_plan)
+            self.ckpt.setdefault("artifacts", {})["slot_plan"] = reconciled_slot_plan
+
+        report = validate_cv_output(
+            selections=selections,
+            slot_plan=reconciled_slot_plan,
+            work_exp=work_exp,
+            length_limits=self._length_limits(cv_format_profile),
+        )
+        return report, reconciled_slot_plan, reconcile_report
 
     def _complete_stage(self, stage: str, output: dict[str, Any] | None) -> None:
         idx = stage_index(stage) + 1
@@ -457,36 +534,35 @@ class CVApplyRunner:
 
     def stage_validate_deterministic(self) -> dict[str, Any]:
         selections = _load_json(self.args.selections_path)
+        if not selections:
+            raise StageBlockedError(f"Missing draft selections: {self.args.selections_path}")
         slot_plan = self.ckpt["artifacts"].get("slot_plan") or _load_json(ARTIFACT_DEFAULT_PATHS["slot_plan"])
+        if not slot_plan:
+            raise StageBlockedError(f"Missing slot plan: {ARTIFACT_DEFAULT_PATHS['slot_plan']}")
         work_exp = _load_json(self.args.work_exp_path, default={})
-        report = validate_cv_output(selections=selections, slot_plan=slot_plan, work_exp=work_exp)
+        cv_format_profile = self._current_cv_profile()
+        report, reconciled_slot_plan, reconcile_report = self._reconcile_and_validate(
+            selections=selections,
+            slot_plan=slot_plan,
+            work_exp=work_exp,
+            cv_format_profile=cv_format_profile,
+        )
         if not report.get("ok", False):
             raise StageBlockedError("Deterministic validation failed; fix failed bullets and resume")
-        return {"validated_bullets": report}
+        return {
+            "validated_bullets": report,
+            "slot_plan": reconciled_slot_plan,
+            "slot_plan_reconcile_report": reconcile_report,
+        }
 
     def stage_render_docx_pdf(self) -> dict[str, Any]:
         docx_path = self.args.docx_path
         pdf_path = self.args.pdf_path
-        cv_format_profile = self.ckpt["artifacts"].get("cv_format_profile") or self._ensure_cv_format_profile()
+        cv_format_profile = self._current_cv_profile()
         if not docx_path:
-            completed = subprocess.run(
-                [
-                    sys.executable,
-                    str(ROOT_DIR / "render_cv.py"),
-                    "--template-path",
-                    str(cv_format_profile["template_path"]),
-                    "--template-map-path",
-                    str(cv_format_profile["template_map_path"]),
-                    "--insert-page-break-before-technical-projects",
-                    "true" if cv_format_profile["insert_page_break_before_technical_projects"] else "false",
-                ],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            if completed.returncode != 0:
-                raise StageBlockedError(f"render_cv failed: {completed.stderr.strip()}")
-            docx_path = completed.stdout.strip().splitlines()[-1].strip()
+            outputs = self._render_with_profile(cv_format_profile=cv_format_profile)
+            docx_path = outputs["docx_path"]
+            pdf_path = outputs["pdf_path"]
         if not pdf_path:
             pdf_path = str(convert_docx_to_pdf(docx_path))
 
@@ -503,7 +579,7 @@ class CVApplyRunner:
         render_outputs = self.ckpt["artifacts"].get("render_outputs")
         if not render_outputs:
             raise StageBlockedError("render_outputs missing; run render_docx_pdf first")
-        cv_format_profile = self.ckpt["artifacts"].get("cv_format_profile") or self._ensure_cv_format_profile()
+        cv_format_profile = self._current_cv_profile()
         expected_pages = int(cv_format_profile["expected_pages"])
         pdf_path = Path(render_outputs["pdf_path"])
         pages = get_page_count(pdf_path)
@@ -514,6 +590,50 @@ class CVApplyRunner:
             "page_match": pages == expected_pages,
             "iterations": 0,
         }
+        if pages != expected_pages and pages > expected_pages:
+            selections = _load_json(self.args.selections_path, default={})
+            slot_plan = self.ckpt["artifacts"].get("slot_plan") or _load_json(
+                ARTIFACT_DEFAULT_PATHS["slot_plan"],
+                default={},
+            )
+            compacted, compact_report = compact_cv_bullets(
+                selections=selections,
+                slot_plan=slot_plan,
+                max_len=int(cv_format_profile.get("compact_length_max", cv_format_profile["bullet_length_max"])),
+            )
+            if compact_report.get("changed"):
+                _write_json(self.args.selections_path, compacted)
+                work_exp = _load_json(self.args.work_exp_path, default={})
+                validation_report, reconciled_slot_plan, reconcile_report = self._reconcile_and_validate(
+                    selections=compacted,
+                    slot_plan=slot_plan,
+                    work_exp=work_exp,
+                    cv_format_profile=cv_format_profile,
+                )
+                if not validation_report.get("ok", False):
+                    raise StageBlockedError("Auto-compaction caused validation failures; manual bullet fix required")
+                rerendered = self._render_with_profile(
+                    cv_format_profile=cv_format_profile,
+                    output_docx_path=render_outputs.get("docx_path"),
+                )
+                self.ckpt["artifacts"]["render_outputs"] = rerendered
+                pdf_path = Path(rerendered["pdf_path"])
+                pages = get_page_count(pdf_path)
+                report.update(
+                    {
+                        "pdf_path": str(pdf_path),
+                        "actual_pages": pages,
+                        "page_match": pages == expected_pages,
+                        "iterations": 1,
+                        "compact_pass": compact_report,
+                        "slot_plan_reconcile_report": reconcile_report,
+                        "validate_after_compact": validation_report,
+                    }
+                )
+                self.ckpt["artifacts"]["slot_plan"] = reconciled_slot_plan
+            else:
+                report["compact_pass"] = compact_report
+
         if pages != expected_pages:
             raise StageBlockedError(f"Layout gate failed: expected {expected_pages} page(s), got {pages}")
         self.ckpt["layout_report"] = report
@@ -603,7 +723,10 @@ class CVApplyRunner:
 
 
 def parse_args() -> RunnerArgs:
-    parser = argparse.ArgumentParser(description="Checkpointed stage runner for /cv-apply")
+    parser = argparse.ArgumentParser(
+        description="Checkpointed stage runner for /cv-apply",
+        allow_abbrev=False,
+    )
     parser.add_argument("--checkpoint", default=str(DEFAULT_CHECKPOINT_PATH))
     parser.add_argument("--metrics-log", default=str(DEFAULT_METRICS_LOG))
     parser.add_argument("--resume", action="store_true")

@@ -10,6 +10,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from cv_apply_contract import normalise_keyword_target, target_in_text
 from validate_redundancy import validate_redundancy
 
 
@@ -63,7 +64,7 @@ def _selection_slot_keys(selections: dict[str, Any]) -> set[tuple[str, str, int]
 def _keyword_target_by_slot(slot_plan: dict[str, Any]) -> dict[tuple[str, str, int], str]:
     targets: dict[tuple[str, str, int], str] = {}
     for card in slot_plan.get("bullet_intent_cards", []):
-        keyword_target = str(card.get("keyword_target", "")).strip()
+        keyword_target = normalise_keyword_target(str(card.get("keyword_target", "")))
         if not keyword_target:
             continue
         key = (str(card.get("section", "")), str(card.get("subsection", "")), int(card.get("slot_index", 0)))
@@ -75,11 +76,14 @@ def validate(
     selections: dict[str, Any],
     slot_plan: dict[str, Any],
     work_exp: dict[str, Any] | None = None,
+    length_limits: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     hard_failures: list[dict[str, Any]] = []
     soft_warnings: list[dict[str, Any]] = []
     explicit_not = _explicit_not_terms(work_exp or {})
     keyword_targets = _keyword_target_by_slot(slot_plan)
+    min_len = int((length_limits or {}).get("min", HARD_MIN_LEN))
+    max_len = int((length_limits or {}).get("max", HARD_MAX_LEN))
 
     required_keys = _required_slot_keys(slot_plan)
     actual_keys = _selection_slot_keys(selections)
@@ -95,12 +99,14 @@ def validate(
         text = str(bullet.get("text", ""))
         slot_key = (bullet.get("section", ""), bullet.get("subsection", ""), int(bullet.get("slot_index", 0)))
         length = len(text)
-        if length < HARD_MIN_LEN or length > HARD_MAX_LEN:
+        if length < min_len or length > max_len:
             hard_failures.append(
                 {
                     "type": "length",
                     "slot": [bullet.get("section"), bullet.get("subsection"), bullet.get("slot_index")],
                     "length": length,
+                    "min_len": min_len,
+                    "max_len": max_len,
                     "text": text,
                 }
             )
@@ -116,12 +122,13 @@ def validate(
 
         lowered = _norm(text)
         keyword_target = keyword_targets.get(slot_key, "")
-        if keyword_target and _norm(keyword_target) not in lowered:
+        if keyword_target and not target_in_text(keyword_target, text):
             hard_failures.append(
                 {
                     "type": "keyword_target_verbatim_missing",
                     "slot": [bullet.get("section"), bullet.get("subsection"), bullet.get("slot_index")],
                     "keyword_target": keyword_target,
+                    "match_type": "case_insensitive_literal_phrase",
                 }
             )
         for phrase in BANNED_PHRASES:
@@ -169,17 +176,27 @@ def validate(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Canonical deterministic validator for CV selections")
+    parser = argparse.ArgumentParser(
+        description="Canonical deterministic validator for CV selections",
+        allow_abbrev=False,
+    )
     parser.add_argument("--selections", required=True, help="Path to .cv-apply-selections-tmp.json")
     parser.add_argument("--slot-plan", required=True, help="Path to .cv-apply-slot-plan-tmp.json")
     parser.add_argument("--work-exp", help="Optional path to .cv-work-experience.json for explicit_not checks")
+    parser.add_argument("--min-len", type=int, default=HARD_MIN_LEN)
+    parser.add_argument("--max-len", type=int, default=HARD_MAX_LEN)
     parser.add_argument("--fail-on-issues", action="store_true")
     args = parser.parse_args()
 
     selections = _load(Path(args.selections))
     slot_plan = _load(Path(args.slot_plan))
     work_exp = _load(Path(args.work_exp)) if args.work_exp else None
-    report = validate(selections=selections, slot_plan=slot_plan, work_exp=work_exp)
+    report = validate(
+        selections=selections,
+        slot_plan=slot_plan,
+        work_exp=work_exp,
+        length_limits={"min": args.min_len, "max": args.max_len},
+    )
     print(json.dumps(report, indent=2, ensure_ascii=False))
     if args.fail_on_issues and not report["ok"]:
         sys.exit(2)

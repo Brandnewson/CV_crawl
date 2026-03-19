@@ -4,12 +4,11 @@
 search:
   site_name:
     - linkedin
+    - glassdoor
     - indeed
   linkedin_fetch_description: true
   description_format: "markdown"
   search_terms:
-    - "forward deployed engineer"
-    - "forward deployed software engineer"
     - "AI engineer"
     - "simulation software engineer"
     - "robotics software engineer"
@@ -17,7 +16,15 @@ search:
     - "agentic systems engineer"
     - "software engineer"
     - "gtm engineer"
+  # Used as a fallback when scoring_profile locations are unavailable.
   location: "Toronto, Canada"
+  # Optional plural shape for transparency/debug overrides.
+  locations:
+    - "London"
+    - "Toronto"
+    - "New York"
+    - "San Francisco"
+    - "Seattle"
   results_wanted: 40
   hours_old: 240
   country_indeed: "UK"

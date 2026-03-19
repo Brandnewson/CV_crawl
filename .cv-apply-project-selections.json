@@ -1,9 +1,7 @@
 {
   "excluded": [
     "fastAPI-design-project",
-    "TyreDataVisualiser",
-    "Python CLI tools",
-    "Hand-Tracking-Using-Opencv"
+    "TyreDataVisualiser"
   ],
   "partial": []
 }

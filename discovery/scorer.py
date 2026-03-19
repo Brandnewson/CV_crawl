@@ -46,7 +46,7 @@ def apply_hard_filters(job: dict, config: dict) -> tuple[bool, str]:
     title = (job.get("title") or "").lower()
     description = (job.get("description") or "").lower()
 
-    # Check for experience requirements (3+ years)
+    # Check for experience requirements and exclude only 4+ years.
     exp_patterns = [
         r'\b([2-9]|\d{2,})\+?\s*years?\s+(of\s+)?experience',
         r'\bminimum\s+([2-9]|\d{2,})\s*years?',
@@ -57,7 +57,7 @@ def apply_hard_filters(job: dict, config: dict) -> tuple[bool, str]:
         match = re.search(pattern, description, re.IGNORECASE)
         if match:
             years = match.group(1)
-            if int(years) >= 2:
+            if int(years) > 3:
                 return True, f"Requires {years}+ years of experience"
 
     # Reject roles aimed at experienced hires unless countered by entry/graduate signals
@@ -170,6 +170,7 @@ Return this exact JSON structure:
 
         result["fit_score"] = max(0.0, min(1.0, float(result["fit_score"])))
 
+        result["_meta"] = {"llm_used": True, "fallback_used": False, "error_type": None}
         return result
 
     except json.JSONDecodeError as e:
@@ -177,18 +178,20 @@ Return this exact JSON structure:
         return {
             "fit_score": 0.5,
             "fit_summary": "Error parsing AI response",
-            "keyword_matches": {"matched": [], "missing": []}
+            "keyword_matches": {"matched": [], "missing": []},
+            "_meta": {"llm_used": False, "fallback_used": True, "error_type": "json_decode_error"},
         }
     except Exception as e:
         print(f"Scoring error for job '{job.get('title', 'unknown')}': {e}")
         return {
             "fit_score": 0.5,
             "fit_summary": f"Error during scoring: {str(e)}",
-            "keyword_matches": {"matched": [], "missing": []}
+            "keyword_matches": {"matched": [], "missing": []},
+            "_meta": {"llm_used": False, "fallback_used": True, "error_type": type(e).__name__},
         }
 
 
-def score_pending_jobs(conn, profile: dict, client: OpenAI, days: int | None = None) -> int:
+def score_pending_jobs(conn, profile: dict, client: OpenAI, days: int | None = None) -> dict[str, Any]:
     """
     Score all jobs in job_status where fit_score IS NULL.
 
@@ -199,11 +202,14 @@ def score_pending_jobs(conn, profile: dict, client: OpenAI, days: int | None = N
         days: If set, only score jobs discovered within the last N days
 
     Returns:
-        Number of jobs scored
+        Structured summary for scored and fallback jobs
     """
     config = load_config()
     scored_count = 0
     skipped_count = 0
+    llm_used = 0
+    fallback_used = 0
+    error_types: dict[str, int] = {}
 
     with conn.cursor() as cur:
         date_filter = "AND j.date_discovered >= NOW() - INTERVAL '%s days'" % int(days) if days else ""
@@ -242,6 +248,13 @@ def score_pending_jobs(conn, profile: dict, client: OpenAI, days: int | None = N
 
         print(f"  Scoring: '{job['title']}' at {job['company']}...")
         result = score_job(job, profile, client)
+        meta = result.get("_meta", {})
+        if meta.get("llm_used"):
+            llm_used += 1
+        if meta.get("fallback_used"):
+            fallback_used += 1
+            err = str(meta.get("error_type") or "unknown")
+            error_types[err] = error_types.get(err, 0) + 1
 
         with conn.cursor() as cur:
             cur.execute("""
@@ -259,7 +272,13 @@ def score_pending_jobs(conn, profile: dict, client: OpenAI, days: int | None = N
         scored_count += 1
         print(f"    Score: {result['fit_score']:.2f}")
 
-    return scored_count
+    return {
+        "scored_count": scored_count,
+        "skipped_count": skipped_count,
+        "llm_used": llm_used,
+        "fallback_used": fallback_used,
+        "error_types": error_types,
+    }
 
 
 def main() -> None:
@@ -296,8 +315,14 @@ def main() -> None:
     conn = psycopg2.connect(db_url)
 
     try:
-        scored = score_pending_jobs(conn, profile, client, days=args.days)
-        print(f"\nScoring complete: {scored} jobs scored")
+        summary = score_pending_jobs(conn, profile, client, days=args.days)
+        print(f"\nScoring complete: {summary['scored_count']} jobs scored")
+        print(
+            "Scoring fallback summary: "
+            f"llm_used={summary['llm_used']}, "
+            f"fallback_used={summary['fallback_used']}, "
+            f"error_types={summary['error_types'] or {}}"
+        )
     finally:
         conn.close()
 

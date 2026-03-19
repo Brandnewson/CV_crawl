@@ -6,7 +6,22 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+import anthropic
+
 from agent.config import get_claude_model
+
+try:
+    from tools.clean_jd import clean_jd
+except Exception:  # pragma: no cover - safe fallback for alternate entrypoints
+    from unicodedata import normalize as _unicode_normalize
+
+    def clean_jd(raw: str) -> str:
+        text = _unicode_normalize("NFKC", raw or "")
+        text = re.sub(r"([a-z])([A-Z])", r"\1 \2", text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
+        text = re.sub(r"[ \t]{2,}", " ", text)
+        text = re.sub(r"\xa0", " ", text)
+        return text.strip()
 
 
 ROLE_FAMILIES = {
@@ -280,6 +295,69 @@ def extract_keywords(job_description: str, role_family: str, client, user_id: in
             keywords[key] = []
 
     return keywords
+
+
+def extract_keywords_safe(
+    job_description: str,
+    job_title: str = "",
+    user_id: int = 1,
+) -> dict:
+    """Safe one-call keyword extraction wrapper for orchestrators/scripts."""
+    cleaned = clean_jd(job_description or "")
+    role_family = classify_role_family(job_title or "", cleaned)
+    try:
+        client = anthropic.Anthropic()
+        keywords = extract_keywords(
+            job_description=cleaned,
+            role_family=role_family,
+            client=client,
+            user_id=user_id,
+        )
+    except Exception:
+        text = cleaned.lower()
+        required_seed: list[str] = []
+        nice_seed: list[str] = []
+        for canonical, aliases in KEYWORD_ALIAS_MAP.items():
+            variants = [canonical] + aliases
+            if any(str(variant).lower() in text for variant in variants):
+                required_seed.append(canonical)
+        for phrase in ("end-to-end", "customer-facing", "real-time", "forward deployed", "machine learning"):
+            if phrase in text and phrase not in required_seed:
+                required_seed.append(phrase)
+        keywords = {
+            "required_keywords": required_seed[:25],
+            "nice_to_have_keywords": nice_seed[:15],
+            "technical_skills": [],
+            "soft_skills": [],
+            "domain_keywords": [],
+            "seniority_signals": [],
+        }
+
+    def _normalise(values: list[str]) -> list[str]:
+        out: list[str] = []
+        for value in values:
+            text = re.sub(r"\s+", " ", str(value or "").strip())
+            if text and text not in out:
+                out.append(text)
+        return out
+
+    required = _normalise(
+        keywords.get("required_keywords", [])
+        + keywords.get("technical_skills", [])
+        + keywords.get("domain_keywords", [])
+    )
+    nice_to_have = _normalise(
+        keywords.get("nice_to_have_keywords", [])
+        + keywords.get("soft_skills", [])
+        + keywords.get("seniority_signals", [])
+    )
+    return {
+        "keywords": {
+            "required": required,
+            "nice_to_have": nice_to_have,
+        },
+        "role_family": role_family,
+    }
 
 
 def score_bullet_against_keywords(bullet: str, keywords: dict) -> tuple[float, list[str]]:

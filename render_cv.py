@@ -33,7 +33,10 @@ def _default_output_path(meta: dict) -> Path:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Render CV DOCX from selections JSON")
+    parser = argparse.ArgumentParser(
+        description="Render CV DOCX from selections JSON",
+        allow_abbrev=False,
+    )
     parser.add_argument("--meta-path", default=str(DEFAULT_META_PATH))
     parser.add_argument("--selections-path", default=str(DEFAULT_SELECTIONS_PATH))
     parser.add_argument("--template-path", default=str(DEFAULT_TEMPLATE_PATH))
