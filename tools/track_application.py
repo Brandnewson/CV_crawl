@@ -20,9 +20,9 @@ from pathlib import Path
 import openpyxl
 from openpyxl.utils import get_column_letter
 
-TRACKER_PATH = Path(
-    r"C:\Users\brans\OneDrive - University of Leeds\GraduateJobHunting\applications_tracker.xlsx"
-)
+from cv_apply_contract import DEFAULT_TRACKER_PATH
+
+TRACKER_PATH = DEFAULT_TRACKER_PATH
 COLUMNS = ["Date Applied", "Company", "Job Title", "City", "Job Description", "Job URL"]
 
 

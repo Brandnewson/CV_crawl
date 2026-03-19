@@ -35,7 +35,7 @@ corrupt state.
 
 ## Checkpoint file
 
-Path: `C:\Code\CV_crawl\.cv-cl-checkpoint.json`
+Path: `{REPO_ROOT}\.cv-cl-checkpoint.json`
 
 This is the single source of truth. Every step reads it at start and writes it at end.
 Its schema tracks progress so the skill can resume from any point.
@@ -102,7 +102,7 @@ while attempt <= MAX_RETRIES:
 ## Story bank reference
 
 Stories are stored in:
-`C:\Code\CV_crawl\.claude\skills\cover-letter-generation\story-bank.json`
+`{REPO_ROOT}\.claude\skills\cover-letter-generation\story-bank.json`
 
 Each story has: `label`, `title`, `themes`, `keyword_heuristics`, `facts`, `do_not_say`.
 
@@ -148,7 +148,7 @@ STYLE RULES - apply without exception:
 
 ## Step 0 - Resume detection
 
-**Before anything else**, check if `C:\Code\CV_crawl\.cv-cl-checkpoint.json` exists.
+**Before anything else**, check if `{REPO_ROOT}\.cv-cl-checkpoint.json` exists.
 
 If it exists, read it and check `job_id` against the current `job_id` from the caller.
 
@@ -201,7 +201,7 @@ drop generic ones like "communication" or "team player".
 
 **Purpose:** load or collect the candidate's address. One task, one file.
 
-Read `C:\Code\CV_crawl\.cv-profile.json`.
+Read `{REPO_ROOT}\.cv-profile.json`.
 
 If it does not exist or is missing any required field, prompt the user **once**:
 ```
@@ -241,7 +241,7 @@ facts here.** Load only metadata.
 
 ### 4a. Load improvement log bias
 
-Read `C:\Code\CV_crawl\.cv-cl-improvement-log.jsonl`.
+Read `{REPO_ROOT}\.cv-cl-improvement-log.jsonl`.
 If it exists, load the last 10 entries.
 
 For each story label, compute a `history_penalty`:
@@ -689,14 +689,14 @@ Update checkpoint: set `"step_completed": 8`.
 }
 ```
 
-Write to `C:\Code\CV_crawl\.cv-cover-letter-tmp.json`.
+Write to `{REPO_ROOT}\.cv-cover-letter-tmp.json`.
 
 ### 9b. Render DOCX
 
 ```
-uv run --project "C:/Code/CV_crawl" \
-    python "C:/Code/CV_crawl/tools/render_cover_letter.py" \
-    "C:/Code/CV_crawl/.cv-cover-letter-tmp.json"
+uv run --project "{REPO_ROOT}" \
+    python "{REPO_ROOT}/tools/render_cover_letter.py" \
+    "{REPO_ROOT}/.cv-cover-letter-tmp.json"
 ```
 
 Capture stdout as `cl_docx_path`.
@@ -704,8 +704,8 @@ Capture stdout as `cl_docx_path`.
 ### 9c. Convert to PDF
 
 ```
-uv run --project "C:/Code/CV_crawl" \
-    python "C:/Code/CV_crawl/tools/docx_to_pdf.py" "[cl_docx_path]"
+uv run --project "{REPO_ROOT}" \
+    python "{REPO_ROOT}/tools/docx_to_pdf.py" "[cl_docx_path]"
 ```
 
 Capture stdout as `cl_pdf_path`.
@@ -717,9 +717,9 @@ The cover letter **MUST** be one page.
 Run:
 
 ```
-uv run --project "C:/Code/CV_crawl" \
-    python "C:/Code/CV_crawl/tools/enforce_one_page_cover_letter.py" \
-    "C:/Code/CV_crawl/.cv-cover-letter-tmp.json"
+uv run --project "{REPO_ROOT}" \
+    python "{REPO_ROOT}/tools/enforce_one_page_cover_letter.py" \
+    "{REPO_ROOT}/.cv-cover-letter-tmp.json"
 ```
 
 This script:
@@ -748,15 +748,15 @@ If the script fails (still >1 page):
 ### 9e. Update database
 
 ```python
-uv run --project "C:/Code/CV_crawl" python -c "
+uv run --project "{REPO_ROOT}" python -c "
 import psycopg2, os, sys, json
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv(Path(r'C:/Code/CV_crawl') / '.env')
+load_dotenv(Path(r'{REPO_ROOT}') / '.env')
 
-meta    = json.loads(open(r'C:/Code/CV_crawl/.cv-apply-meta-tmp.json', encoding='utf-8').read())
+meta    = json.loads(open(r'{REPO_ROOT}/.cv-apply-meta-tmp.json', encoding='utf-8').read())
 cl_docx = sys.argv[1]
 cl_pdf  = sys.argv[2]
 
@@ -802,7 +802,7 @@ Update checkpoint: `"cl_docx_path"`, `"cl_pdf_path"`, `"step_completed": 9`.
 
 **Purpose:** capture what worked for future story scoring.
 
-Append one JSON line to `C:\Code\CV_crawl\.cv-cl-improvement-log.jsonl`:
+Append one JSON line to `{REPO_ROOT}\.cv-cl-improvement-log.jsonl`:
 
 ```json
 {
@@ -822,7 +822,7 @@ Append one JSON line to `C:\Code\CV_crawl\.cv-cl-improvement-log.jsonl`:
 ```
 
 If there were writing-rule failures, page-overflow failures, or repeated refinements,
-append one JSON line per failure to `C:\Code\CV_crawl\.cv-cl-past-errors.jsonl`:
+append one JSON line per failure to `{REPO_ROOT}\.cv-cl-past-errors.jsonl`:
 
 ```json
 {

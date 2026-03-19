@@ -1,0 +1,17 @@
+# CV Pipeline — User Configuration
+# Run /cv-setup to populate these interactively, or fill them in manually.
+
+# Your GitHub username (used by /cv-harvest to pull commit history + READMEs)
+github_username: ""
+
+# Absolute path to the folder where generated CV DOCX/PDF files should be saved
+# Default (if blank): <repo_root>/cv-outputs/
+cv_output_dir: ""
+
+# Absolute path to your folder of job-hunting documents (JDs, notes) — used by /cv-harvest
+# Default (if blank): cv-harvest will skip the Job Target Analyst sub-agent
+job_hunting_dir: ""
+
+# Absolute path to your Excel application tracker
+# Default (if blank): <repo_root>/cv-outputs/applications_tracker.xlsx
+applications_tracker_path: ""

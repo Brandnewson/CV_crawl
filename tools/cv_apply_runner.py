@@ -26,10 +26,13 @@ from check_pdf_pages import get_page_count
 from cv_apply_contract import (
     ARTIFACT_DEFAULT_PATHS,
     BULLET_POLICY,
+    CANONICAL_FACT_STORES,
     CHECKPOINT_SCHEMA_VERSION,
     CV_FORMAT_PROFILES,
     DEFAULT_CHECKPOINT_PATH,
+    DEFAULT_FACT_PATCH_LOG,
     DEFAULT_METRICS_LOG,
+    REPO_ROOT,
     STAGE_ORDER,
     stage_index,
     stages_to_invalidate,
@@ -822,7 +825,7 @@ class CVApplyRunner:
         patch["applied"] = ok
         patch["timestamp"] = patch.get("timestamp", _utcnow())
         patch["feedback_type"] = feedback_type
-        _append_jsonl(Path(r"C:\Code\CV_crawl\.cv-fact-patches.jsonl"), patch)
+        _append_jsonl(DEFAULT_FACT_PATCH_LOG, patch)
         refs = self.ckpt.setdefault("fact_patch_refs", [])
         refs.append({"patch_id": patch.get("patch_id", ""), "applied": ok, "reason": reason})
         if ok:
@@ -863,7 +866,7 @@ class CVApplyRunner:
             "docx_path": outputs.get("docx_path"),
             "pdf_path": outputs.get("pdf_path"),
         }
-        handoff_path = Path(r"C:\Code\CV_crawl\.cv-apply-cover-letter-handoff.json")
+        handoff_path = REPO_ROOT / ".cv-apply-cover-letter-handoff.json"
         _write_json(handoff_path, handoff)
         return {"cover_letter_handoff": {"path": str(handoff_path)}}
 
@@ -879,9 +882,9 @@ def parse_args() -> RunnerArgs:
     parser.add_argument("--target-stage")
     parser.add_argument("--meta-path", default=str(ARTIFACT_DEFAULT_PATHS["meta"]))
     parser.add_argument("--keywords-path", default=str(ARTIFACT_DEFAULT_PATHS["jd_keywords"]))
-    parser.add_argument("--work-exp-path", default=r"C:\Code\CV_crawl\.cv-work-experience.json")
-    parser.add_argument("--store-path", default=r"C:\Code\CV_crawl\.cv-harvest-store.json")
-    parser.add_argument("--cache-path", default=r"C:\Code\CV_crawl\.experience-cache.json")
+    parser.add_argument("--work-exp-path", default=str(CANONICAL_FACT_STORES["work_experience"]))
+    parser.add_argument("--store-path", default=str(CANONICAL_FACT_STORES["projects"]))
+    parser.add_argument("--cache-path", default=str(CANONICAL_FACT_STORES["experience_cache"]))
     parser.add_argument("--project-selections-path", default=str(ARTIFACT_DEFAULT_PATHS["project_selections"]))
     parser.add_argument("--coverage-review-path", default=str(ARTIFACT_DEFAULT_PATHS["coverage_review"]))
     parser.add_argument("--cv-length-pages", type=int, choices=[1, 2])

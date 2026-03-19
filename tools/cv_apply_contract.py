@@ -5,17 +5,39 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import yaml
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _load_user_config() -> dict:
+    p = REPO_ROOT / "user_config.yaml"
+    if p.exists():
+        return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    return {}
+
+
+_USER_CONFIG = _load_user_config()
+
+DEFAULT_CV_OUTPUT_DIR = Path(
+    _USER_CONFIG.get("cv_output_dir") or str(REPO_ROOT / "cv-outputs")
+)
+DEFAULT_TRACKER_PATH = Path(
+    _USER_CONFIG.get("applications_tracker_path")
+    or str(DEFAULT_CV_OUTPUT_DIR / "applications_tracker.xlsx")
+)
+
 
 def ensure_tmp_dir() -> None:
-    Path(r"C:\Code\CV_crawl\.tmp").mkdir(exist_ok=True)
+    (REPO_ROOT / ".tmp").mkdir(exist_ok=True)
 
 
 ensure_tmp_dir()
 
 CHECKPOINT_SCHEMA_VERSION = 2
-DEFAULT_CHECKPOINT_PATH = Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-checkpoint.json")
-DEFAULT_FACT_PATCH_LOG = Path(r"C:\Code\CV_crawl\.cv-fact-patches.jsonl")
-DEFAULT_METRICS_LOG = Path(r"C:\Code\CV_crawl\.cv-apply-run-metrics.jsonl")
+DEFAULT_CHECKPOINT_PATH = REPO_ROOT / ".tmp" / ".cv-apply-checkpoint.json"
+DEFAULT_FACT_PATCH_LOG = REPO_ROOT / ".cv-fact-patches.jsonl"
+DEFAULT_METRICS_LOG = REPO_ROOT / ".cv-apply-run-metrics.jsonl"
 
 BULLET_POLICY = {
     "hard_max_chars": 120,
@@ -27,8 +49,8 @@ BULLET_POLICY = {
 CV_FORMAT_PROFILES = {
     2: {
         "name": "2-page",
-        "template_path": Path(r"C:\Code\CV_crawl\profile\cv_template.docx"),
-        "template_map_path": Path(r"C:\Code\CV_crawl\profile\template_map.json"),
+        "template_path": REPO_ROOT / "profile" / "cv_template.docx",
+        "template_map_path": REPO_ROOT / "profile" / "template_map.json",
         "expected_pages": 2,
         "insert_page_break_before_technical_projects": True,
         "bullet_length_min": 80,
@@ -36,8 +58,8 @@ CV_FORMAT_PROFILES = {
     },
     1: {
         "name": "1-page",
-        "template_path": Path(r"C:\Code\CV_crawl\reference_files\Branson Tay CV 1 page template.docx"),
-        "template_map_path": Path(r"C:\Code\CV_crawl\profile\template_map_1page.json"),
+        "template_path": REPO_ROOT / "profile" / "cv_template_1page.docx",
+        "template_map_path": REPO_ROOT / "profile" / "template_map_1page.json",
         "expected_pages": 1,
         "insert_page_break_before_technical_projects": False,
         "bullet_length_min": 80,
@@ -46,21 +68,21 @@ CV_FORMAT_PROFILES = {
 }
 
 CANONICAL_FACT_STORES = {
-    "work_experience": Path(r"C:\Code\CV_crawl\.cv-work-experience.json"),
-    "projects": Path(r"C:\Code\CV_crawl\.cv-harvest-store.json"),
-    "experience_cache": Path(r"C:\Code\CV_crawl\.experience-cache.json"),
-    "promoted_facts": Path(r"C:\Code\CV_crawl\.cv-facts-promoted.json"),
+    "work_experience": REPO_ROOT / ".cv-work-experience.json",
+    "projects": REPO_ROOT / ".cv-harvest-store.json",
+    "experience_cache": REPO_ROOT / ".experience-cache.json",
+    "promoted_facts": REPO_ROOT / ".cv-facts-promoted.json",
 }
 
 ARTIFACT_DEFAULT_PATHS = {
-    "jd_keywords": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-jd-keywords-tmp.json"),
-    "project_selections": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-project-selections.json"),
-    "evidence_packs": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-evidence-pack-tmp.json"),
-    "slot_plan": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-slot-plan-tmp.json"),
-    "coverage_plan": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-coverage-plan-tmp.json"),
-    "coverage_review": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-coverage-review-tmp.json"),
-    "draft_sections": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-selections-tmp.json"),
-    "meta": Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-meta-tmp.json"),
+    "jd_keywords": REPO_ROOT / ".tmp" / ".cv-apply-jd-keywords-tmp.json",
+    "project_selections": REPO_ROOT / ".tmp" / ".cv-apply-project-selections.json",
+    "evidence_packs": REPO_ROOT / ".tmp" / ".cv-apply-evidence-pack-tmp.json",
+    "slot_plan": REPO_ROOT / ".tmp" / ".cv-apply-slot-plan-tmp.json",
+    "coverage_plan": REPO_ROOT / ".tmp" / ".cv-apply-coverage-plan-tmp.json",
+    "coverage_review": REPO_ROOT / ".tmp" / ".cv-apply-coverage-review-tmp.json",
+    "draft_sections": REPO_ROOT / ".tmp" / ".cv-apply-selections-tmp.json",
+    "meta": REPO_ROOT / ".tmp" / ".cv-apply-meta-tmp.json",
 }
 
 STAGE_ORDER = [

@@ -138,8 +138,9 @@ def main() -> None:
     parser.add_argument("--mode", choices=("classify", "apply"), required=True)
     parser.add_argument("--feedback", help="Feedback text")
     parser.add_argument("--patch-json", help="Patch json path for apply mode")
-    parser.add_argument("--work-exp", default=r"C:\Code\CV_crawl\.cv-work-experience.json")
-    parser.add_argument("--projects", default=r"C:\Code\CV_crawl\.cv-harvest-store.json")
+    from cv_apply_contract import CANONICAL_FACT_STORES
+    parser.add_argument("--work-exp", default=str(CANONICAL_FACT_STORES["work_experience"]))
+    parser.add_argument("--projects", default=str(CANONICAL_FACT_STORES["projects"]))
     args = parser.parse_args()
 
     if args.mode == "classify":

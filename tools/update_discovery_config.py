@@ -11,7 +11,7 @@ from typing import Any
 import yaml
 
 
-DEFAULT_CONFIG_PATH = Path(r"C:\Code\CV_crawl\discovery\config.yaml")
+DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "discovery" / "config.yaml"
 
 
 def _load_config(path: Path) -> dict[str, Any]:

@@ -9,7 +9,7 @@ from pathlib import Path
 from agent.jd_parser import extract_keywords_safe
 
 
-DEFAULT_JD_PATH = Path(r"C:\Code\CV_crawl\.cv-apply-jd-tmp.txt")
+DEFAULT_JD_PATH = Path(__file__).resolve().parent.parent / ".cv-apply-jd-tmp.txt"
 
 
 def _write(path: Path, payload: dict) -> None:

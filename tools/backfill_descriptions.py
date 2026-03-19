@@ -22,7 +22,7 @@ from discovery.enrichment import normalize_job_description_markdown
 
 # Load .env from CV_crawl
 from dotenv import load_dotenv
-load_dotenv(Path(r"C:\Code\CV_crawl\.env"))
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 
 HEADERS = {

@@ -15,7 +15,7 @@ import psycopg2
 from dotenv import load_dotenv
 
 
-DEFAULT_PROJECT_ROOT = Path(r"C:\Code\CV_crawl")
+DEFAULT_PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def parse_args() -> argparse.Namespace:

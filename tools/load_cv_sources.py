@@ -16,10 +16,11 @@ def _load_json(path: Path, default: Any = None) -> Any:
 
 
 def parse_args() -> argparse.Namespace:
+    from cv_apply_contract import CANONICAL_FACT_STORES
     parser = argparse.ArgumentParser(description="Load CV source files", allow_abbrev=False)
-    parser.add_argument("--store-path", default=r"C:\Code\CV_crawl\.cv-harvest-store.json")
-    parser.add_argument("--work-exp-path", default=r"C:\Code\CV_crawl\.cv-work-experience.json")
-    parser.add_argument("--cache-path", default=r"C:\Code\CV_crawl\.experience-cache.json")
+    parser.add_argument("--store-path", default=str(CANONICAL_FACT_STORES["projects"]))
+    parser.add_argument("--work-exp-path", default=str(CANONICAL_FACT_STORES["work_experience"]))
+    parser.add_argument("--cache-path", default=str(CANONICAL_FACT_STORES["experience_cache"]))
     return parser.parse_args()
 
 

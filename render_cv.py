@@ -10,15 +10,13 @@ from pathlib import Path
 
 from agent.cv_renderer import render_cv
 from agent.validators import UserSelections
+from tools.cv_apply_contract import ARTIFACT_DEFAULT_PATHS, CV_FORMAT_PROFILES, DEFAULT_CV_OUTPUT_DIR
 
-
-DEFAULT_META_PATH = Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-meta-tmp.json")
-DEFAULT_SELECTIONS_PATH = Path(r"C:\Code\CV_crawl\.tmp\.cv-apply-selections-tmp.json")
-DEFAULT_TEMPLATE_PATH = Path(r"C:\Code\CV_crawl\profile\cv_template.docx")
-DEFAULT_TEMPLATE_MAP_PATH = Path(r"C:\Code\CV_crawl\profile\template_map.json")
-DEFAULT_OUTPUT_DIR = Path(
-    r"C:\Users\brans\OneDrive - University of Leeds\GraduateJobHunting\claude-cv-outputs"
-)
+DEFAULT_META_PATH = ARTIFACT_DEFAULT_PATHS["meta"]
+DEFAULT_SELECTIONS_PATH = ARTIFACT_DEFAULT_PATHS["draft_sections"]
+DEFAULT_TEMPLATE_PATH = CV_FORMAT_PROFILES[2]["template_path"]
+DEFAULT_TEMPLATE_MAP_PATH = CV_FORMAT_PROFILES[2]["template_map_path"]
+DEFAULT_OUTPUT_DIR = DEFAULT_CV_OUTPUT_DIR
 
 
 def _load_json(path: Path) -> dict:

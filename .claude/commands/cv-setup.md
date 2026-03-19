@@ -10,8 +10,10 @@ your profile, add a role, or add a new cover-letter story.
 
 | File | Purpose |
 |---|---|
+| `user_config.yaml` | Machine-specific paths and GitHub username |
 | `.cv-profile.json` | Your name, address, education, contact details |
 | `.cv-work-experience.json` | Verified facts per work experience role |
+| `.cv-harvest-store.json` | Technical project store (auto-populated in Step 4) |
 | `.cv-facts-promoted.json` | Reusable skill / technology facts |
 | `.experience-cache.json` | Per-job Q&A cache (auto-managed) |
 | `story-bank.json` | Cover letter stories with facts |
@@ -20,17 +22,30 @@ your profile, add a role, or add a new cover-letter story.
 
 ## ORCHESTRATOR — run this sequence
 
+### Step -1 — Detect repo root
+
+Run:
+```
+git -C "<current working directory>" rev-parse --show-toplevel
+```
+
+Store the output as `REPO_ROOT`. Use `{REPO_ROOT}` for all paths below.
+
+---
+
 ### Step 0 — File inventory scan
 
 Check which files exist and which sections are complete:
 
 ```
 Read and check:
+  {REPO_ROOT}/user_config.yaml        — exists? github_username field non-empty?
   .cv-profile.json           — schema_version field exists AND education array is non-empty?
   .cv-work-experience.json   — exists AND work_experience array is non-empty?
+  .cv-harvest-store.json     — exists AND projects array is non-empty?
   .cv-facts-promoted.json    — exists?
   .experience-cache.json     — exists? count non-null entries with a job_id field
-  story-bank.json at C:\Code\CV_crawl\.claude\skills\cover-letter-generation\story-bank.json
+  story-bank.json at {REPO_ROOT}/.claude/skills/cover-letter-generation/story-bank.json
 ```
 
 Display a status table:
@@ -38,29 +53,59 @@ Display a status table:
 ```
 Checking your profile files...
 
-  [x] .cv-profile.json         — exists  (name: <name>)        COMPLETE / INCOMPLETE
-  [x] .cv-work-experience.json — exists  (<N> roles)           COMPLETE / MISSING
-  [x] .cv-facts-promoted.json  — exists                        COMPLETE / MISSING
+  [x] user_config.yaml         — exists  (github: <github_username>)    COMPLETE / MISSING
+  [x] .cv-profile.json         — exists  (name: <name>)                 COMPLETE / INCOMPLETE
+  [x] .cv-work-experience.json — exists  (<N> roles)                    COMPLETE / MISSING
+  [x] .cv-harvest-store.json   — exists  (<N> projects)                 COMPLETE / MISSING
+  [x] .cv-facts-promoted.json  — exists                                 COMPLETE / MISSING
   [~] .experience-cache.json   — exists  (<N> answered entries, <M> job_ids)
   [x] story-bank.json          — exists  (<N> stories)
 
 What would you like to do?
   [1] First-time setup (fill all missing sections in order)
-  [2] Update personal profile only
-  [3] Add or edit a work experience role
-  [4] Add or edit a cover letter story
-  [5] Review experience cache (promote reusable facts, prune old entries)
+  [2] Update user config (paths, GitHub username)
+  [3] Update personal profile only
+  [4] Add or edit a work experience role
+  [5] Add cover letter story
+  [6] Review experience cache (promote reusable facts, prune old entries)
   [Q] Quit
 ```
 
 Execute whichever section the user requests. Sections are independent and can be run
-in any order. If the user selects [1], run sections 1 → 2 → 3 → 4 → 5 → summary.
+in any order. If the user selects [1], run sections 0b → 1 → 2 → 3 → 4 → 5 → summary.
+
+---
+
+### Step 0b — User config (user_config.yaml)
+
+**Target file:** `{REPO_ROOT}/user_config.yaml`
+
+Load the file if it exists. For each field, show the current value in brackets and let
+the user press Enter to keep it or type a new value:
+
+```
+--- USER CONFIGURATION ---
+GitHub username [<current or blank>]:
+CV output directory (where DOCXs are saved) [<current or repo_root/cv-outputs>]:
+Job hunting docs folder (optional, for /cv-harvest) [<current or blank>]:
+Application tracker path (optional) [<current or cv_output_dir/applications_tracker.xlsx>]:
+```
+
+Write / update `user_config.yaml` with the four fields:
+```yaml
+github_username: "<value>"
+cv_output_dir: "<value>"
+job_hunting_dir: "<value>"
+applications_tracker_path: "<value>"
+```
+
+Print: `Saved user_config.yaml`
 
 ---
 
 ### Step 1 — Personal profile
 
-**Target file:** `C:\Code\CV_crawl\.cv-profile.json`
+**Target file:** `{REPO_ROOT}/.cv-profile.json`
 
 Load the file if it exists. For each field, show the current value in brackets and let
 the user press Enter to keep it or type a new value.
@@ -137,7 +182,7 @@ Print: `Saved .cv-profile.json`
 
 ### Step 2 — Work experience roles
 
-**Target file:** `C:\Code\CV_crawl\.cv-work-experience.json`
+**Target file:** `{REPO_ROOT}/.cv-work-experience.json`
 
 Load the file if it exists.
 
@@ -154,6 +199,56 @@ Options:
   [D1..DN] Delete a role entirely (asks for confirmation)
   [N] Skip / done
 ```
+
+#### 2a — Existing CV upload (primary path)
+
+Before prompting for individual roles, ask:
+
+```
+Do you have an existing CV to upload? Providing one means I can auto-populate
+your work experience without you typing anything.
+CV file path (DOCX preferred, Enter to skip):
+```
+
+**If a file path is provided:**
+- If the file is a DOCX, use the `docx` skill to extract its full text content
+- If the file is a PDF, extract text using:
+  ```
+  uv run --project "{REPO_ROOT}" python - <<'PY'
+  import sys
+  import pypdf
+  r = pypdf.PdfReader(sys.argv[1])
+  print("\n".join(p.extract_text() or "" for p in r.pages))
+  PY
+  ```
+- Parse every work experience section: extract org name, role title, dates, and all
+  bullet points verbatim
+- For each role found, generate a `verified_facts[]` list from the bullets
+  (split compound bullets, normalise tense to past)
+- Display extracted roles for quick review:
+  ```
+  Extracted from CV:
+    1. <Org Name> — <Role Title> (<Start> – <End>)
+       1. <fact text>
+       2. <fact text>
+       ...  (<N> facts)
+    2. ...
+
+  Look right? [Y to accept all / enter role numbers to edit / A to edit all]:
+  ```
+- After acceptance, ask: **"Anything we missed that might be useful to add?"**
+  User types any extra facts free-form (one per line, blank line to finish).
+  Append these to the relevant role's `verified_facts[]`.
+- For technical roles, offer repo analysis as a supplement:
+  ```
+  Want me to scan a code repo to find additional technical facts for <org>? [y/N]:
+  ```
+  If yes, ask for the repo path and scan it (list files, read README, detect tech stack).
+
+**If no CV is provided (or user skips):**
+Fall through to the manual role-by-role flow below.
+
+#### Manual role entry
 
 **Adding a new role:**
 
@@ -217,7 +312,7 @@ Print: `Saved .cv-work-experience.json  (<N> roles, <total facts> facts)`
 
 ### Step 3 — Cover letter stories
 
-**Target file:** `C:\Code\CV_crawl\.claude\skills\cover-letter-generation\story-bank.json`
+**Target file:** `{REPO_ROOT}/.claude/skills/cover-letter-generation/story-bank.json`
 
 Load the file.
 
@@ -269,11 +364,93 @@ Print: `Saved story-bank.json  (<N> stories)`
 
 ---
 
-### Step 4 — Promote facts from experience cache (optional)
+### Step 4 — Technical projects harvest
+
+Work experience comes from Step 2. Technical projects come from two independent sources.
+
+#### Source A — CV technical projects section
+
+If the uploaded CV (Step 2) contained a technical projects section, those projects were
+already extracted. Show them for quick review:
+
+```
+Projects found in CV:
+  1. <Project Name>  (<N> bullets)
+  2. ...
+These will be included in your project store. Edit? [Y/n]:
+```
+
+If the user wants to edit a project, show its bullets numbered and offer add/delete.
+
+#### Source B — GitHub public repos (supplemental)
+
+Read `GITHUB_USERNAME` from `user_config.yaml`. If blank, skip this source and note it.
+
+```
+Fetching public repos for github.com/{GITHUB_USERNAME}...
+```
+
+- Call `https://api.github.com/users/{GITHUB_USERNAME}/repos?sort=updated&per_page=30`
+- For each repo updated in the last 24 months: read description, topics, README (first 500 chars),
+  latest commit messages
+- Generate 2–3 project bullet candidates per repo
+- Present them for inclusion/exclusion:
+  ```
+  GitHub repos found (not already in CV):
+    [x] <repo_name>  — <language>, <topics>
+    [x] <repo_name>  — <language>, <topics>
+    [ ] dotfiles     — (low signal, skipped)
+  Include/exclude? [Enter to accept checked, type numbers to toggle]:
+  ```
+- Accepted repos are merged into the project store with generated bullets
+
+#### Merge and write
+
+Combine CV projects + accepted GitHub repos → write `{REPO_ROOT}/.cv-harvest-store.json`:
+
+```json
+{
+  "generated_at": "<ISO timestamp>",
+  "projects": [
+    {
+      "name": "<project_name>",
+      "title": "<short human title>",
+      "description": "<one sentence>",
+      "tech_tags": ["..."],
+      "standout_factor": "...",
+      "bullets": [
+        {
+          "text": "...",
+          "confidence": "high|medium|low",
+          "keywords_matched": ["..."],
+          "scale_metrics_known": true|false,
+          "gap_question": null,
+          "question_id": "..."
+        }
+      ]
+    }
+  ]
+}
+```
+
+Print:
+```
+Project store written:
+  From CV:     <N> projects
+  From GitHub: <M> projects
+  Total:       <N+M> projects, <X> bullets → .cv-harvest-store.json
+```
+
+If both sources were skipped/empty, print a note that `/cv-harvest` can populate this
+file automatically from a deeper repo + GitHub scan.
+
+---
+
+### Step 5 — Promote facts from experience cache (optional)
 
 **Target files:**
-- `C:\Code\CV_crawl\.experience-cache.json` (read + prune)
-- `C:\Code\CV_crawl\.cv-facts-promoted.json` (write promotions)
+- `{REPO_ROOT}/.experience-cache.json` (read + prune)
+- `{REPO_ROOT}/.cv-facts-promoted.json` (write promotions)
 
 Load `.experience-cache.json`. Skip this step entirely if there are no entries with a
 non-null `answer` and a `ts` (timestamp) field.
@@ -327,22 +504,20 @@ Removed  <M> entries from .experience-cache.json
 
 ---
 
-### Step 5 — Summary
+### Step 6 — Summary
 
 Print:
 
 ```
 --- SETUP COMPLETE ---
-  <status for each file changed or unchanged>
+  user_config.yaml           ✓  github: <username>, output: <cv_output_dir>
+  .cv-profile.json           ✓  <name>
+  .cv-work-experience.json   ✓  <N> roles, <total> facts
+  .cv-harvest-store.json     ✓  <N> projects, <X> bullets
+  story-bank.json            ✓  <N> stories
 
 You are ready to run:
-  /cv-harvest   — analyse your projects and build .cv-harvest-store.json (~3-5 min)
-  /cv-discover  — search for new jobs (configure search terms, location, sites)
-  /cv-apply     — generate a tailored CV for a job from your DB
-
-If you need to customise paths (hardcoded to a specific machine), update:
-  .claude/commands/cv-apply.md  — "Paths" table at top of file
-  .claude/commands/cv-harvest.md
-  .claude/skills/cover-letter-generation/SKILL.md
-  tools/cv_apply_contract.py    — CANONICAL_FACT_STORES and DEFAULT_CHECKPOINT_PATH
+  /cv-discover  — search for and score new jobs
+  /cv-apply     — generate a tailored CV for any job in your DB
+  /cv-harvest   — re-run project analysis to refresh your experience store
 ```

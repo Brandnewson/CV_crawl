@@ -5,28 +5,41 @@ ranked results. Requires a running PostgreSQL database and `OPENAI_API_KEY` in `
 
 ---
 
-## Paths
+## Paths (resolved at runtime from `user_config.yaml`)
 
 | Asset | Path |
 |---|---|
-| Config | `C:\Code\CV_crawl\discovery\config.yaml` |
-| Scoring profile | `C:\Code\CV_crawl\profile\scoring_profile.yaml` |
-| Automation lessons | `C:\Code\CV_crawl\LESSONS.md` |
-| uv project | `C:\Code\CV_crawl\` |
-| .env | `C:\Code\CV_crawl\.env` |
+| Config | `{REPO_ROOT}\discovery\config.yaml` |
+| Scoring profile | `{REPO_ROOT}\profile\scoring_profile.yaml` |
+| Automation lessons | `{REPO_ROOT}\LESSONS.md` |
+| uv project | `{REPO_ROOT}\` |
+| .env | `{REPO_ROOT}\.env` |
 
 ---
 
 ## ORCHESTRATOR - run this sequence
 
-Before executing any shell/Python snippet, read `C:\Code\CV_crawl\LESSONS.md`
+### Step -1 — Detect repo root and load user config
+
+Run:
+```
+git -C "<current working directory>" rev-parse --show-toplevel
+```
+
+Store the output as `REPO_ROOT`. Use `{REPO_ROOT}` everywhere a path is needed in this command.
+
+If `{REPO_ROOT}/user_config.yaml` does not exist, tell the user to run `/cv-setup` first and stop.
+
+---
+
+Before executing any shell/Python snippet, read `{REPO_ROOT}\LESSONS.md`
 and apply relevant rules (especially L001 for shell quoting).
 If a recurring automation failure appears, append a new lesson entry with
 symptom, root cause, and safe pattern.
 
 ### Step 0 - Load current config
 
-Read `C:\Code\CV_crawl\discovery\config.yaml` and display the current settings:
+Read `{REPO_ROOT}\discovery\config.yaml` and display the current settings:
 
 ```
 --- CURRENT SEARCH CONFIG ---
@@ -80,8 +93,8 @@ Title exclusion keywords (comma-separated, Enter to keep current):
 Write the updated config atomically using the script entrypoint:
 
 ```bash
-uv run --project "C:/Code/CV_crawl" \
-    python "C:/Code/CV_crawl/tools/update_discovery_config.py" \
+uv run --project "{REPO_ROOT}" \
+    python "{REPO_ROOT}/tools/update_discovery_config.py" \
     --search-terms "<comma_separated_terms>" \
     --location "<location>" \
     --locations "<comma_separated_locations>" \
@@ -102,8 +115,8 @@ If the user selected [E] (edit only), stop here.
 ### Step 2 - Refresh discovery statuses (safe reopen)
 
 ```
-uv run --project "C:/Code/CV_crawl" \
-    python "C:/Code/CV_crawl/tools/refresh_discovery_state.py" \
+uv run --project "{REPO_ROOT}" \
+    python "{REPO_ROOT}/tools/refresh_discovery_state.py" \
     --reopen-cv-generated-days 7
 ```
 
@@ -117,7 +130,7 @@ Read and display refresh summary:
 ### Step 3 - Run discovery (search)
 
 ```
-uv run --project "C:/Code/CV_crawl" python "C:/Code/CV_crawl/discovery/run_search.py"
+uv run --project "{REPO_ROOT}" python "{REPO_ROOT}/discovery/run_search.py"
 ```
 
 Print live output as it runs - the script prints per-term progress. If the DB is
@@ -132,9 +145,9 @@ Read and display the final `ENRICHMENT FALLBACK SUMMARY` line.
 
 If `DATABASE_URL` is not set in `.env`, print:
 ```
-ERROR: DATABASE_URL not found. Add it to C:\Code\CV_crawl\.env and retry.
+ERROR: DATABASE_URL not found. Add it to {REPO_ROOT}\.env and retry.
   Example: DATABASE_URL=postgresql://localhost/job_pipeline
-  To set up the DB from scratch: uv run --project "C:/Code/CV_crawl" python "C:/Code/CV_crawl/db/setup_db.py"
+  To set up the DB from scratch: uv run --project "{REPO_ROOT}" python "{REPO_ROOT}/db/setup_db.py"
 ```
 
 ---
@@ -142,12 +155,12 @@ ERROR: DATABASE_URL not found. Add it to C:\Code\CV_crawl\.env and retry.
 ### Step 4 - Score new jobs
 
 ```
-uv run --project "C:/Code/CV_crawl" python "C:/Code/CV_crawl/discovery/scorer.py" --days 1
+uv run --project "{REPO_ROOT}" python "{REPO_ROOT}/discovery/scorer.py" --days 1
 ```
 
 Requires `OPENAI_API_KEY` in `.env`. If missing, print:
 ```
-ERROR: OPENAI_API_KEY not found. Add it to C:\Code\CV_crawl\.env and retry.
+ERROR: OPENAI_API_KEY not found. Add it to {REPO_ROOT}\.env and retry.
 ```
 
 Print scoring progress as it runs (the script prints per-job status).
@@ -163,7 +176,7 @@ Read and display the final `Scoring fallback summary` line with:
 Query DB for jobs scored today with fit_score >= 0.5 and status = 'new':
 
 ```
-uv run --project "C:/Code/CV_crawl" python "C:/Code/CV_crawl/tools/query_jobs.py" \
+uv run --project "{REPO_ROOT}" python "{REPO_ROOT}/tools/query_jobs.py" \
     --min-score 0.5 --status new --limit 10
 ```
 

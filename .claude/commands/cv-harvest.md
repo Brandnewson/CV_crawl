@@ -6,17 +6,36 @@ description, bullet points) tuned to the roles you are actually applying for.
 
 ---
 
-## Paths (hardcoded to your machine)
+## Paths (resolved at runtime from `user_config.yaml`)
 
 | Source | Path |
 |---|---|
-| Code projects | `C:\Code\CV_crawl` |
-| Job hunting docs | `C:\Users\brans\OneDrive - University of Leeds\GraduateJobHunting` |
-| GitHub username | `Brandnewson` |
+| Code projects | `{REPO_ROOT}` |
+| Job hunting docs | `{JOB_HUNTING_DIR}` |
+| GitHub username | `{GITHUB_USERNAME}` |
 
 ---
 
 ## ORCHESTRATOR - run this sequence
+
+### Step -1 — Detect repo root and load user config
+
+Run:
+```
+git -C "<current working directory>" rev-parse --show-toplevel
+```
+
+Store the output as `REPO_ROOT`. Use `{REPO_ROOT}` everywhere a path is needed in this command.
+
+Read `{REPO_ROOT}/user_config.yaml` (if it exists) and store values as:
+- `GITHUB_USERNAME` = github_username field (or "")
+- `JOB_HUNTING_DIR` = job_hunting_dir field (or "")
+
+If `user_config.yaml` does not exist, tell the user to run `/cv-setup` first and stop.
+
+If `JOB_HUNTING_DIR` is blank, skip TASK 3 (Job Target Analyst) and note it in the output.
+
+---
 
 ### Step 0 - Discover projects list (run first, sequentially)
 
@@ -24,7 +43,7 @@ Run the following to get the list of top-level project folders in your Code dire
 Store this list - all later agents need it.
 
 ```powershell
-Get-ChildItem "C:\Code\CV_crawl" -Directory | Select-Object -ExpandProperty Name
+Get-ChildItem "{REPO_ROOT}" -Directory | Select-Object -ExpandProperty Name
 ```
 
 ---
@@ -38,13 +57,13 @@ Get-ChildItem "C:\Code\CV_crawl" -Directory | Select-Object -ExpandProperty Name
 ```
 You are the Code Analyst sub-agent.
 
-Your job is to inspect every project folder inside C:\Code\CV_crawl and
+Your job is to inspect every project folder inside {REPO_ROOT} and
 produce a structured profile of each one.
 
 For EACH subdirectory (treat each as a separate project):
 
 1. List its contents:
-   Get-ChildItem "C:\Code\CV_crawl\<project>" -Recurse -Depth 2
+   Get-ChildItem "{REPO_ROOT}\<project>" -Recurse -Depth 2
 
 2. Detect the tech stack by checking for:
    - package.json                              -> Node/TypeScript/JavaScript
@@ -59,7 +78,7 @@ For EACH subdirectory (treat each as a separate project):
 3. If a README.md or README.rst exists, read its first 100 lines.
 
 4. Count lines of code:
-   (Get-ChildItem "C:\Code\CV_crawl\<project>" -Recurse -Include *.py,*.ts,*.js,*.rs,*.go,*.cs | Get-Content | Measure-Object -Line).Lines
+   (Get-ChildItem "{REPO_ROOT}\<project>" -Recurse -Include *.py,*.ts,*.js,*.rs,*.go,*.cs | Get-Content | Measure-Object -Line).Lines
 
 5. Look for config files or imports that reveal these frameworks:
    - LangChain, LangGraph, CrewAI, AutoGen, Semantic Kernel (AI/agent frameworks)
@@ -73,7 +92,7 @@ Return your findings as:
 
 <code_intelligence>
   <project name="<folder name>">
-    <path>C:\Code\CV_crawl\<folder name></path>
+    <path>{REPO_ROOT}\<folder name></path>
     <primary_language>...</primary_language>
     <frameworks>comma-separated</frameworks>
     <architecture_patterns>e.g. multi-agent, REST API, data pipeline, CLI tool</architecture_patterns>
@@ -92,16 +111,16 @@ Return your findings as:
 ```
 You are the GitHub Analyst sub-agent.
 
-Fetch public activity for GitHub user: Brandnewson
+Fetch public activity for GitHub user: {GITHUB_USERNAME}
 
 1. Fetch recent repositories:
-   curl -s "https://api.github.com/users/Brandnewson/repos-sort=updated&per_page=30"
+   curl -s "https://api.github.com/users/{GITHUB_USERNAME}/repos-sort=updated&per_page=30"
 
    For each repo extract: name, description, language, topics, updated_at,
    stargazers_count, forks_count.
 
 2. For repositories updated in the last 18 months, fetch the commit log:
-   curl -s "https://api.github.com/repos/Brandnewson/<repo>/commits-per_page=30"
+   curl -s "https://api.github.com/repos/{GITHUB_USERNAME}/<repo>/commits-per_page=30"
 
    Extract commit messages to understand what was being built/changed.
 
@@ -109,7 +128,7 @@ Fetch public activity for GitHub user: Brandnewson
    Flag these as local_match="yes" - they have double evidence.
 
 4. Fetch README content for the most active repos:
-   curl -s "https://api.github.com/repos/Brandnewson/<repo>/readme" | python3 -c "
+   curl -s "https://api.github.com/repos/{GITHUB_USERNAME}/<repo>/readme" | python3 -c "
    import sys,json,base64
    d=json.load(sys.stdin)
    print(base64.b64decode(d['content']).decode()[:3000])
@@ -141,10 +160,10 @@ You are the Job Target Analyst sub-agent.
 Read the job applications folder to extract what roles, skills, and keywords
 are being targeted - so CV bullets can be tuned to match.
 
-Base path: C:\Users\brans\OneDrive - University of Leeds\GraduateJobHunting
+Base path: {JOB_HUNTING_DIR}
 
 1. List all subfolders (each is one job application):
-   Get-ChildItem "C:\Users\brans\OneDrive - University of Leeds\GraduateJobHunting" -Directory
+   Get-ChildItem "{JOB_HUNTING_DIR}" -Directory
 
 2. For each subfolder, find and read job description files:
    - Look for: *.txt, *.md, *job*.pdf, *JD*.pdf, *description*.pdf, *role*.pdf
@@ -204,13 +223,13 @@ Return findings as:
 ```
 You are the Git History Analyst sub-agent.
 
-For each project folder in C:\Code\CV_crawl that contains a .git directory:
+For each project folder in {REPO_ROOT} that contains a .git directory:
 
 1. Check for git:
-   Test-Path "C:\Code\CV_crawl\<project>\.git"
+   Test-Path "{REPO_ROOT}\<project>\.git"
 
 2. Run git log for each local repo:
-   cd "C:\Code\CV_crawl\<project>"
+   cd "{REPO_ROOT}\<project>"
    git log --oneline --since="18 months ago" 2>$null | Select-Object -First 60
 
 3. Find files added over time (reveals scope of work):
@@ -298,7 +317,7 @@ Parse `<cv_output>` and print to terminal:
 
 ```
 +--------------------------------------------------------------+
-|              CV HARVEST - github.com/Brandnewson             |
+|              CV HARVEST - github.com/{GITHUB_USERNAME}             |
 +--------------------------------------------------------------+
 
 --------------------------------------------------------------
@@ -321,7 +340,7 @@ Key Top keywords matched: [top 5 high_priority_keywords used across bullets]
 ```
 
 Write full output (formatted bullets + raw XML) to:
-`C:\Code\CV_crawl\.cv-harvest-output.md`
+`{REPO_ROOT}\.cv-harvest-output.md`
 
 ---
 
@@ -330,7 +349,7 @@ Write full output (formatted bullets + raw XML) to:
 After writing the output file, produce a structured JSON experience store.
 
 Parse `<cv_output>` + the four intelligence XML blocks and write to
-`C:\Code\CV_crawl\.cv-harvest-store.json`:
+`{REPO_ROOT}\.cv-harvest-store.json`:
 
 ```python
 import json, re, sys
@@ -338,7 +357,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Read the output file just written
-output_text = Path(r"C:\Code\CV_crawl\.cv-harvest-output.md").read_text(encoding="utf-8")
+output_text = Path(r"{REPO_ROOT}\.cv-harvest-output.md").read_text(encoding="utf-8")
 
 # Helper: check if any bullet has a numeric metric (%, LOC, ms, req/s, x, etc.)
 def has_metric(text):
@@ -391,7 +410,7 @@ store = {
     "projects": projects
 }
 
-Path(r"C:\Code\CV_crawl\.cv-harvest-store.json").write_text(
+Path(r"{REPO_ROOT}\.cv-harvest-store.json").write_text(
     json.dumps(store, indent=2, ensure_ascii=False), encoding="utf-8"
 )
 print(f"Wrote .cv-harvest-store.json - {len(projects)} projects, "

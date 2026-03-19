@@ -42,7 +42,7 @@ def _column_exists(cur, table: str, column: str) -> bool:
 
 
 def persist_cv_paths(meta: dict[str, Any], docx_path: str, pdf_path: str) -> dict[str, Any]:
-    load_dotenv(Path(r"C:/Code/CV_crawl") / ".env")
+    load_dotenv(Path(__file__).resolve().parent / ".env")
     db_url = os.environ["DATABASE_URL"]
     job_id = meta["job_id"]
 
@@ -110,7 +110,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Persist CV paths to DB without touching cover letter fields")
     parser.add_argument("pos_docx", nargs="?")
     parser.add_argument("pos_pdf", nargs="?")
-    parser.add_argument("--meta", default=r"C:/Code/CV_crawl/.cv-apply-meta-tmp.json")
+    parser.add_argument("--meta", default=str(Path(__file__).resolve().parent / ".tmp" / ".cv-apply-meta-tmp.json"))
     parser.add_argument("--docx", dest="opt_docx")
     parser.add_argument("--pdf", dest="opt_pdf")
     args = parser.parse_args()
