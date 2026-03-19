@@ -25,6 +25,7 @@ if str(ROOT_DIR) not in sys.path:
 from check_pdf_pages import get_page_count
 from cv_apply_contract import (
     ARTIFACT_DEFAULT_PATHS,
+    BULLET_POLICY,
     CHECKPOINT_SCHEMA_VERSION,
     CV_FORMAT_PROFILES,
     DEFAULT_CHECKPOINT_PATH,
@@ -33,7 +34,7 @@ from cv_apply_contract import (
     stage_index,
     stages_to_invalidate,
 )
-from compact_cv_bullets import compact_cv_bullets
+from coverage_plan import build_coverage_plan
 from docx_to_pdf import convert as convert_docx_to_pdf
 from evidence_select import build_evidence
 from fact_patch import apply_patch_if_safe, classify_feedback
@@ -41,6 +42,7 @@ from reconcile_slot_plan_targets import reconcile_slot_plan_targets
 from slot_plan import build_slot_plan
 from update_db import persist_cv_paths
 from validate_cv_output import validate as validate_cv_output
+from wrap_optimizer import detect_wrapped_bullets, rephrase_wrapped_bullets
 
 
 MAX_STAGE_RETRIES = 2
@@ -86,6 +88,7 @@ class RunnerArgs:
     store_path: Path
     cache_path: Path
     project_selections_path: Path
+    coverage_review_path: Path
     cv_length_pages: int | None
     template_path: Path | None
     template_map_path: Path | None
@@ -115,6 +118,8 @@ class CVApplyRunner:
             "gap_normalize": self.stage_gap_normalize,
             "evidence_select": self.stage_evidence_select,
             "slot_plan": self.stage_slot_plan,
+            "coverage_plan": self.stage_coverage_plan,
+            "coverage_review": self.stage_coverage_review,
             "draft_work_experience": self.stage_draft_work_experience,
             "draft_technical_projects": self.stage_draft_technical_projects,
             "assemble": self.stage_assemble,
@@ -175,8 +180,11 @@ class CVApplyRunner:
             "expected_pages": expected_pages,
             "insert_page_break_before_technical_projects": insert_break,
             "bullet_length_min": int(profile_defaults["bullet_length_min"]),
+            "bullet_length_hard_max": int(BULLET_POLICY["hard_max_chars"]),
             "bullet_length_max": int(profile_defaults["bullet_length_max"]),
-            "compact_length_max": int(profile_defaults["compact_length_max"]),
+            "bullet_length_target": int(BULLET_POLICY["preferred_target_chars"]),
+            "explicit_coverage_ratio": float(BULLET_POLICY["explicit_coverage_ratio"]),
+            "wrap_retry_budget": int(BULLET_POLICY["wrap_retry_budget"]),
         }
 
     def _ensure_cv_format_profile(self, meta: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -191,6 +199,15 @@ class CVApplyRunner:
             _write_json(self.args.meta_path, meta)
         self._save_checkpoint()
         return profile
+
+    def _ensure_cv_variant_id(self, meta: dict[str, Any]) -> str:
+        existing = str(meta.get("cv_variant_id", "")).strip()
+        if existing:
+            return existing
+        generated = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+        meta["cv_variant_id"] = generated
+        _write_json(self.args.meta_path, meta)
+        return generated
 
     def _default_checkpoint(self) -> dict[str, Any]:
         return {
@@ -212,6 +229,10 @@ class CVApplyRunner:
     def _load_checkpoint(self) -> dict[str, Any]:
         existing = _load_json(self.args.checkpoint)
         if not existing:
+            ckpt = self._default_checkpoint()
+            _write_json(self.args.checkpoint, ckpt)
+            return ckpt
+        if int(existing.get("schema_version", 0)) != CHECKPOINT_SCHEMA_VERSION:
             ckpt = self._default_checkpoint()
             _write_json(self.args.checkpoint, ckpt)
             return ckpt
@@ -248,7 +269,8 @@ class CVApplyRunner:
     def _length_limits(cv_format_profile: dict[str, Any]) -> dict[str, int]:
         return {
             "min": int(cv_format_profile.get("bullet_length_min", 80)),
-            "max": int(cv_format_profile.get("bullet_length_max", 115)),
+            "target": int(cv_format_profile.get("bullet_length_target", BULLET_POLICY["preferred_target_chars"])),
+            "hard_max": int(cv_format_profile.get("bullet_length_hard_max", BULLET_POLICY["hard_max_chars"])),
         }
 
     def _render_with_profile(
@@ -381,8 +403,9 @@ class CVApplyRunner:
         missing = [k for k in required if k not in meta]
         if missing:
             raise StageBlockedError(f"job_meta missing required keys: {missing}")
+        cv_variant_id = self._ensure_cv_variant_id(meta)
         cv_format_profile = self._ensure_cv_format_profile(meta=meta)
-        return {"job_meta": meta, "cv_format_profile": cv_format_profile}
+        return {"job_meta": meta, "cv_format_profile": cv_format_profile, "cv_variant_id": cv_variant_id}
 
     def stage_jd_extract(self) -> dict[str, Any]:
         if not self.args.keywords_path.exists():
@@ -497,8 +520,14 @@ class CVApplyRunner:
         cv_format_profile = self.ckpt["artifacts"].get("cv_format_profile") or self._ensure_cv_format_profile()
         template_map_path = Path(cv_format_profile["template_map_path"])
         template_map = _load_json(template_map_path, default={})
+        job_meta = self.ckpt["artifacts"].get("job_meta", {})
+        cv_variant_id = str(job_meta.get("cv_variant_id", self.ckpt["artifacts"].get("cv_variant_id", "")))
         previous = self.ckpt["artifacts"].get("slot_plan")
-        plan = build_slot_plan(evidence=evidence, template_map=template_map)
+        plan = build_slot_plan(
+            evidence=evidence,
+            template_map=template_map,
+            cv_variant_id=cv_variant_id,
+        )
         _write_json(ARTIFACT_DEFAULT_PATHS["slot_plan"], plan)
         if previous and previous != plan:
             self.ckpt.setdefault("invalidations", []).extend(stages_to_invalidate("slot_plan"))
@@ -507,6 +536,91 @@ class CVApplyRunner:
                 "slot_plan is insufficient; ask insufficiency_questions, update cache, then resume from evidence_select"
             )
         return {"slot_plan": plan}
+
+    def stage_coverage_plan(self) -> dict[str, Any]:
+        slot_plan = self.ckpt["artifacts"].get("slot_plan") or _load_json(ARTIFACT_DEFAULT_PATHS["slot_plan"])
+        if not slot_plan:
+            raise StageBlockedError(f"Missing slot plan: {ARTIFACT_DEFAULT_PATHS['slot_plan']}")
+        jd_keywords = self.ckpt["artifacts"].get("jd_keywords") or _load_json(self.args.keywords_path, {})
+        cv_format_profile = self._current_cv_profile()
+        explicit_ratio = float(cv_format_profile.get("explicit_coverage_ratio", BULLET_POLICY["explicit_coverage_ratio"]))
+        job_meta = self.ckpt["artifacts"].get("job_meta", {})
+        cv_variant_id = str(job_meta.get("cv_variant_id", self.ckpt["artifacts"].get("cv_variant_id", "")))
+
+        previous = self.ckpt["artifacts"].get("coverage_plan")
+        updated_slot_plan, coverage_report = build_coverage_plan(
+            slot_plan=slot_plan,
+            jd_keywords=jd_keywords,
+            explicit_ratio=explicit_ratio,
+            cv_variant_id=cv_variant_id,
+        )
+        _write_json(ARTIFACT_DEFAULT_PATHS["slot_plan"], updated_slot_plan)
+        _write_json(ARTIFACT_DEFAULT_PATHS["coverage_plan"], coverage_report)
+        if previous and previous != coverage_report:
+            self.ckpt.setdefault("invalidations", []).extend(stages_to_invalidate("coverage_plan"))
+        return {
+            "slot_plan": updated_slot_plan,
+            "coverage_plan": coverage_report,
+            "coverage_report": coverage_report,
+        }
+
+    def stage_coverage_review(self) -> dict[str, Any]:
+        coverage_report = self.ckpt["artifacts"].get("coverage_report") or _load_json(
+            ARTIFACT_DEFAULT_PATHS["coverage_plan"],
+            default={},
+        )
+        if not coverage_report:
+            raise StageBlockedError("coverage_report missing; run coverage_plan first")
+
+        uncovered_required = list(coverage_report.get("uncovered_required", []))
+        uncovered_nice = list(coverage_report.get("uncovered_nice_to_have", []))
+        if not (uncovered_required or uncovered_nice):
+            return {"coverage_review": {"status": "not_required"}}
+
+        review_path = self.args.coverage_review_path
+        if not review_path.exists():
+            review_path.parent.mkdir(parents=True, exist_ok=True)
+            template = {
+                "status": "pending",
+                "notes": "",
+                "uncovered_required": uncovered_required,
+                "uncovered_nice_to_have": uncovered_nice,
+                "uncovered_support": coverage_report.get("uncovered_support", {}),
+            }
+            _write_json(review_path, template)
+            raise StageBlockedError(
+                "coverage_review required. Create review file at "
+                f"{review_path} with {{\"status\":\"approved\",\"notes\":\"...\"}} after reviewing uncovered terms "
+                f"(required={uncovered_required}, nice_to_have={uncovered_nice})"
+            )
+        review = _load_json(review_path, default={})
+        status = str(review.get("status", "")).strip().lower()
+        if status != "approved":
+            raise StageBlockedError(
+                f"coverage_review file must set status=approved before drafting: {review_path}"
+            )
+        cache_updates = review.get("cache_updates", {})
+        if isinstance(cache_updates, dict) and cache_updates and not review.get("cache_updates_applied", False):
+            cache = _load_json(self.args.cache_path, default={})
+            job_meta = self.ckpt["artifacts"].get("job_meta", {})
+            for question_id, answer in cache_updates.items():
+                text = str(answer or "").strip()
+                if not text:
+                    continue
+                cache[str(question_id)] = {
+                    "answer": text,
+                    "job_id": job_meta.get("job_id"),
+                    "ts": _utcnow(),
+                    "source": "coverage_review",
+                }
+            _write_json(self.args.cache_path, cache)
+            review["cache_updates_applied"] = True
+            _write_json(review_path, review)
+            raise StageBlockedError(
+                "coverage_review cache_updates were applied. Re-run from stage evidence_select "
+                "to refresh evidence, slot_plan, and coverage_plan before drafting."
+            )
+        return {"coverage_review": {"status": "approved", "path": str(review_path), "review": review}}
 
     def stage_draft_work_experience(self) -> dict[str, Any]:
         selections = _load_json(self.args.selections_path)
@@ -581,63 +695,95 @@ class CVApplyRunner:
             raise StageBlockedError("render_outputs missing; run render_docx_pdf first")
         cv_format_profile = self._current_cv_profile()
         expected_pages = int(cv_format_profile["expected_pages"])
-        pdf_path = Path(render_outputs["pdf_path"])
-        pages = get_page_count(pdf_path)
-        report = {
-            "pdf_path": str(pdf_path),
-            "expected_pages": expected_pages,
-            "actual_pages": pages,
-            "page_match": pages == expected_pages,
-            "iterations": 0,
-        }
-        if pages != expected_pages and pages > expected_pages:
+        wrap_retry_budget = int(cv_format_profile.get("wrap_retry_budget", BULLET_POLICY["wrap_retry_budget"]))
+        preferred_target = int(
+            cv_format_profile.get("bullet_length_target", BULLET_POLICY["preferred_target_chars"])
+        )
+
+        attempt_reports: list[dict[str, Any]] = []
+        final_pages = -1
+        final_wrap_count = -1
+
+        for attempt in range(0, wrap_retry_budget + 1):
+            current_outputs = self.ckpt["artifacts"].get("render_outputs", render_outputs)
+            pdf_path = Path(current_outputs["pdf_path"])
             selections = _load_json(self.args.selections_path, default={})
+
+            pages = get_page_count(pdf_path)
+            wrap_report = detect_wrapped_bullets(pdf_path=pdf_path, selections=selections)
+            wrapped_bullets = list(wrap_report.get("wrapped_bullets", []))
+            final_pages = pages
+            final_wrap_count = len(wrapped_bullets)
+
+            attempt_payload: dict[str, Any] = {
+                "attempt": attempt,
+                "pdf_path": str(pdf_path),
+                "actual_pages": pages,
+                "expected_pages": expected_pages,
+                "wrapped_count": len(wrapped_bullets),
+                "wrap_report": wrap_report,
+            }
+            attempt_reports.append(attempt_payload)
+
+            if pages == expected_pages and not wrapped_bullets:
+                report = {
+                    "pdf_path": str(pdf_path),
+                    "expected_pages": expected_pages,
+                    "actual_pages": pages,
+                    "page_match": True,
+                    "wrapped_count": 0,
+                    "iterations": attempt,
+                    "attempts": attempt_reports,
+                }
+                self.ckpt["layout_report"] = report
+                self.ckpt.setdefault("artifacts", {})["wrap_report"] = report
+                return {"layout_report": report, "wrap_report": report}
+
+            if attempt >= wrap_retry_budget:
+                break
+            if not wrapped_bullets:
+                # Cannot auto-heal page mismatch if no specific wrapped bullets were detected.
+                break
+
             slot_plan = self.ckpt["artifacts"].get("slot_plan") or _load_json(
                 ARTIFACT_DEFAULT_PATHS["slot_plan"],
                 default={},
             )
-            compacted, compact_report = compact_cv_bullets(
+            rewritten, rephrase_report = rephrase_wrapped_bullets(
                 selections=selections,
                 slot_plan=slot_plan,
-                max_len=int(cv_format_profile.get("compact_length_max", cv_format_profile["bullet_length_max"])),
+                wrapped_bullets=wrapped_bullets,
+                preferred_target_chars=preferred_target,
             )
-            if compact_report.get("changed"):
-                _write_json(self.args.selections_path, compacted)
-                work_exp = _load_json(self.args.work_exp_path, default={})
-                validation_report, reconciled_slot_plan, reconcile_report = self._reconcile_and_validate(
-                    selections=compacted,
-                    slot_plan=slot_plan,
-                    work_exp=work_exp,
-                    cv_format_profile=cv_format_profile,
-                )
-                if not validation_report.get("ok", False):
-                    raise StageBlockedError("Auto-compaction caused validation failures; manual bullet fix required")
-                rerendered = self._render_with_profile(
-                    cv_format_profile=cv_format_profile,
-                    output_docx_path=render_outputs.get("docx_path"),
-                )
-                self.ckpt["artifacts"]["render_outputs"] = rerendered
-                pdf_path = Path(rerendered["pdf_path"])
-                pages = get_page_count(pdf_path)
-                report.update(
-                    {
-                        "pdf_path": str(pdf_path),
-                        "actual_pages": pages,
-                        "page_match": pages == expected_pages,
-                        "iterations": 1,
-                        "compact_pass": compact_report,
-                        "slot_plan_reconcile_report": reconcile_report,
-                        "validate_after_compact": validation_report,
-                    }
-                )
-                self.ckpt["artifacts"]["slot_plan"] = reconciled_slot_plan
-            else:
-                report["compact_pass"] = compact_report
+            attempt_payload["rephrase_report"] = rephrase_report
+            if not rephrase_report.get("changed"):
+                break
 
-        if pages != expected_pages:
-            raise StageBlockedError(f"Layout gate failed: expected {expected_pages} page(s), got {pages}")
-        self.ckpt["layout_report"] = report
-        return {"layout_report": report}
+            _write_json(self.args.selections_path, rewritten)
+            work_exp = _load_json(self.args.work_exp_path, default={})
+            validation_report, reconciled_slot_plan, reconcile_report = self._reconcile_and_validate(
+                selections=rewritten,
+                slot_plan=slot_plan,
+                work_exp=work_exp,
+                cv_format_profile=cv_format_profile,
+            )
+            attempt_payload["validate_after_rephrase"] = validation_report
+            attempt_payload["slot_plan_reconcile_report"] = reconcile_report
+            if not validation_report.get("ok", False):
+                raise StageBlockedError("Wrap rephrase pass caused validation failures; manual bullet fix required")
+
+            self.ckpt.setdefault("artifacts", {})["slot_plan"] = reconciled_slot_plan
+            rerendered = self._render_with_profile(
+                cv_format_profile=cv_format_profile,
+                output_docx_path=current_outputs.get("docx_path"),
+            )
+            self.ckpt.setdefault("artifacts", {})["render_outputs"] = rerendered
+            render_outputs = rerendered
+
+        raise StageBlockedError(
+            "Layout gate failed after wrap optimization: "
+            f"expected_pages={expected_pages}, actual_pages={final_pages}, wrapped_bullets={final_wrap_count}"
+        )
 
     def stage_preview_feedback(self) -> dict[str, Any]:
         if not self.args.feedback_path:
@@ -737,6 +883,7 @@ def parse_args() -> RunnerArgs:
     parser.add_argument("--store-path", default=r"C:\Code\CV_crawl\.cv-harvest-store.json")
     parser.add_argument("--cache-path", default=r"C:\Code\CV_crawl\.experience-cache.json")
     parser.add_argument("--project-selections-path", default=str(ARTIFACT_DEFAULT_PATHS["project_selections"]))
+    parser.add_argument("--coverage-review-path", default=str(ARTIFACT_DEFAULT_PATHS["coverage_review"]))
     parser.add_argument("--cv-length-pages", type=int, choices=[1, 2])
     parser.add_argument("--template-path")
     parser.add_argument("--template-map-path")
@@ -762,6 +909,7 @@ def parse_args() -> RunnerArgs:
         store_path=Path(ns.store_path),
         cache_path=Path(ns.cache_path),
         project_selections_path=Path(ns.project_selections_path),
+        coverage_review_path=Path(ns.coverage_review_path),
         cv_length_pages=ns.cv_length_pages,
         template_path=Path(ns.template_path) if ns.template_path else None,
         template_map_path=Path(ns.template_map_path) if ns.template_map_path else None,

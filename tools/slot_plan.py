@@ -9,6 +9,7 @@ Enforces diversity before drafting:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -65,6 +66,13 @@ def _confidence_weight(confidence: str) -> int:
     if c == "medium":
         return 2
     return 1
+
+
+def _variant_bias(cv_variant_id: str, claim_id: str) -> int:
+    """Stable tie-breaker for same-job rerun variation."""
+    seed = f"{cv_variant_id}:{claim_id}".encode("utf-8")
+    digest = hashlib.sha256(seed).hexdigest()
+    return int(digest[:8], 16)
 
 
 def _match_pack_name(needle: str, candidates: list[dict[str, Any]], section: str) -> dict[str, Any] | None:
@@ -193,6 +201,7 @@ def _pick_intents_for_subsection(
     claim_lookup: dict[str, dict[str, Any]],
     required_keywords: list[str],
     intent_prefix: str,
+    cv_variant_id: str = "",
 ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     claims = [claim_lookup[cid] for cid in pack.get("eligible_claim_ids", []) if cid in claim_lookup]
     if not claims:
@@ -204,6 +213,7 @@ def _pick_intents_for_subsection(
             bool(c.get("outcome_impact")),
             len(c.get("method_tool", [])),
             _confidence_weight(c.get("confidence", "medium")),
+            _variant_bias(cv_variant_id, str(c.get("claim_id", ""))),
         ),
         reverse=True,
     )
@@ -279,6 +289,8 @@ def _pick_intents_for_subsection(
                 "secondary_claim_ids": secondary_ids,
                 "keyword_target": keyword_target,
                 "keyword_target_source": keyword_target_source,
+                "keyword_target_norm": normalise_keyword_target(keyword_target),
+                "coverage_mode": "implicit",
                 "must_include": must_include,
                 "must_avoid": must_avoid,
             }
@@ -287,7 +299,11 @@ def _pick_intents_for_subsection(
     return cards, questions
 
 
-def build_slot_plan(evidence: dict[str, Any], template_map: dict[str, Any]) -> dict[str, Any]:
+def build_slot_plan(
+    evidence: dict[str, Any],
+    template_map: dict[str, Any],
+    cv_variant_id: str = "",
+) -> dict[str, Any]:
     claim_units = evidence.get("claim_units", [])
     claim_lookup = {c["claim_id"]: c for c in claim_units}
     packs = evidence.get("evidence_packs", [])
@@ -317,6 +333,7 @@ def build_slot_plan(evidence: dict[str, Any], template_map: dict[str, Any]) -> d
             claim_lookup=claim_lookup,
             required_keywords=required,
             intent_prefix=f"intent_work_{_safe_id(subsection)}",
+            cv_variant_id=cv_variant_id,
         )
         intent_cards.extend(cards)
         insufficiency_questions.extend(questions)
@@ -352,6 +369,7 @@ def build_slot_plan(evidence: dict[str, Any], template_map: dict[str, Any]) -> d
             claim_lookup=claim_lookup,
             required_keywords=required,
             intent_prefix=f"intent_proj_{_safe_id(template_subsection)}",
+            cv_variant_id=cv_variant_id,
         )
         intent_cards.extend(cards)
         insufficiency_questions.extend(questions)
@@ -370,6 +388,8 @@ def build_slot_plan(evidence: dict[str, Any], template_map: dict[str, Any]) -> d
                 "intent_type": card["intent_type"],
                 "keyword_target": card["keyword_target"],
                 "keyword_target_source": card.get("keyword_target_source", "none"),
+                "keyword_target_norm": card.get("keyword_target_norm", ""),
+                "coverage_mode": card.get("coverage_mode", "implicit"),
                 "primary_claim": {
                     "claim_id": card["primary_claim_id"],
                     "text": primary.get("claim_text", ""),
@@ -384,6 +404,7 @@ def build_slot_plan(evidence: dict[str, Any], template_map: dict[str, Any]) -> d
     is_sufficient = len(insufficiency_questions) == 0
     return {
         "schema_version": 1,
+        "cv_variant_id": cv_variant_id,
         "hidden_projects": hidden_projects,
         "header_swaps": header_swaps,
         "bullet_intent_cards": intent_cards,
@@ -400,12 +421,13 @@ def main() -> None:
     )
     parser.add_argument("--evidence", required=True, help="Path to evidence_select output JSON")
     parser.add_argument("--template-map", required=True, help="Path to template_map.json")
+    parser.add_argument("--cv-variant-id", default="", help="Optional stable variant id for tie-break variation")
     parser.add_argument("--out", required=True, help="Output path for slot plan JSON")
     args = parser.parse_args()
 
     evidence = _load(Path(args.evidence))
     template_map = _load(Path(args.template_map))
-    payload = build_slot_plan(evidence, template_map)
+    payload = build_slot_plan(evidence, template_map, cv_variant_id=str(args.cv_variant_id or ""))
 
     out_path = Path(args.out)
     out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")

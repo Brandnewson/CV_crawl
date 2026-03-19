@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from collections import Counter
@@ -15,7 +16,7 @@ from validate_redundancy import validate_redundancy
 
 
 HARD_MIN_LEN = 80
-HARD_MAX_LEN = 115
+HARD_MAX_LEN = 120
 BANNED_PHRASES = (
     "fast-paced",
     "passionate about",
@@ -72,6 +73,14 @@ def _keyword_target_by_slot(slot_plan: dict[str, Any]) -> dict[tuple[str, str, i
     return targets
 
 
+def _coverage_mode_by_slot(slot_plan: dict[str, Any]) -> dict[tuple[str, str, int], str]:
+    modes: dict[tuple[str, str, int], str] = {}
+    for card in slot_plan.get("bullet_intent_cards", []):
+        key = (str(card.get("section", "")), str(card.get("subsection", "")), int(card.get("slot_index", 0)))
+        modes[key] = str(card.get("coverage_mode", "implicit")).strip().lower() or "implicit"
+    return modes
+
+
 def validate(
     selections: dict[str, Any],
     slot_plan: dict[str, Any],
@@ -82,8 +91,11 @@ def validate(
     soft_warnings: list[dict[str, Any]] = []
     explicit_not = _explicit_not_terms(work_exp or {})
     keyword_targets = _keyword_target_by_slot(slot_plan)
+    coverage_modes = _coverage_mode_by_slot(slot_plan)
     min_len = int((length_limits or {}).get("min", HARD_MIN_LEN))
-    max_len = int((length_limits or {}).get("max", HARD_MAX_LEN))
+    max_len = int((length_limits or {}).get("hard_max", HARD_MAX_LEN))
+    target_len = int((length_limits or {}).get("target", 110))
+    explicit_ratio = float(slot_plan.get("coverage_policy", {}).get("explicit_ratio", 0.5))
 
     required_keys = _required_slot_keys(slot_plan)
     actual_keys = _selection_slot_keys(selections)
@@ -93,6 +105,20 @@ def validate(
         hard_failures.append({"type": "slot_fill_missing", "missing_slots": missing_slots})
     if extra_slots:
         hard_failures.append({"type": "slot_fill_extra", "extra_slots": extra_slots})
+
+    explicit_slot_keys = {
+        key for key, mode in coverage_modes.items() if mode == "explicit"
+    }
+    required_explicit = int(math.ceil(len(required_keys) * explicit_ratio)) if required_keys else 0
+    if len(explicit_slot_keys) < required_explicit:
+        hard_failures.append(
+            {
+                "type": "explicit_quota",
+                "required_explicit_slots": required_explicit,
+                "actual_explicit_slots": len(explicit_slot_keys),
+                "explicit_ratio": explicit_ratio,
+            }
+        )
 
     verbs: list[str] = []
     for bullet in selections.get("approved_bullets", []):
@@ -110,6 +136,15 @@ def validate(
                     "text": text,
                 }
             )
+        elif length > target_len:
+            soft_warnings.append(
+                {
+                    "type": "over_target_length",
+                    "slot": [bullet.get("section"), bullet.get("subsection"), bullet.get("slot_index")],
+                    "length": length,
+                    "target_len": target_len,
+                }
+            )
 
         if "intent_id" not in bullet or "provenance" not in bullet:
             hard_failures.append(
@@ -122,7 +157,15 @@ def validate(
 
         lowered = _norm(text)
         keyword_target = keyword_targets.get(slot_key, "")
-        if keyword_target and not target_in_text(keyword_target, text):
+        coverage_mode = coverage_modes.get(slot_key, "implicit")
+        if coverage_mode == "explicit" and not keyword_target:
+            hard_failures.append(
+                {
+                    "type": "explicit_slot_missing_target",
+                    "slot": [bullet.get("section"), bullet.get("subsection"), bullet.get("slot_index")],
+                }
+            )
+        if coverage_mode == "explicit" and keyword_target and not target_in_text(keyword_target, text):
             hard_failures.append(
                 {
                     "type": "keyword_target_verbatim_missing",
@@ -184,7 +227,8 @@ def main() -> None:
     parser.add_argument("--slot-plan", required=True, help="Path to .cv-apply-slot-plan-tmp.json")
     parser.add_argument("--work-exp", help="Optional path to .cv-work-experience.json for explicit_not checks")
     parser.add_argument("--min-len", type=int, default=HARD_MIN_LEN)
-    parser.add_argument("--max-len", type=int, default=HARD_MAX_LEN)
+    parser.add_argument("--hard-max-len", type=int, default=HARD_MAX_LEN)
+    parser.add_argument("--target-len", type=int, default=110)
     parser.add_argument("--fail-on-issues", action="store_true")
     args = parser.parse_args()
 
@@ -195,7 +239,7 @@ def main() -> None:
         selections=selections,
         slot_plan=slot_plan,
         work_exp=work_exp,
-        length_limits={"min": args.min_len, "max": args.max_len},
+        length_limits={"min": args.min_len, "hard_max": args.hard_max_len, "target": args.target_len},
     )
     print(json.dumps(report, indent=2, ensure_ascii=False))
     if args.fail_on_issues and not report["ok"]:

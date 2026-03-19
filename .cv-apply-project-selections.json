@@ -1,7 +1,4 @@
 {
-  "excluded": [
-    "fastAPI-design-project",
-    "TyreDataVisualiser"
-  ],
+  "excluded": ["fastAPI-design-project", "TyreDataVisualiser", "Python CLI tools", "gra"],
   "partial": []
 }

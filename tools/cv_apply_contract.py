@@ -6,10 +6,17 @@ import re
 from pathlib import Path
 
 
-CHECKPOINT_SCHEMA_VERSION = 1
+CHECKPOINT_SCHEMA_VERSION = 2
 DEFAULT_CHECKPOINT_PATH = Path(r"C:\Code\CV_crawl\.cv-apply-checkpoint.json")
 DEFAULT_FACT_PATCH_LOG = Path(r"C:\Code\CV_crawl\.cv-fact-patches.jsonl")
 DEFAULT_METRICS_LOG = Path(r"C:\Code\CV_crawl\.cv-apply-run-metrics.jsonl")
+
+BULLET_POLICY = {
+    "hard_max_chars": 120,
+    "preferred_target_chars": 110,
+    "explicit_coverage_ratio": 0.5,
+    "wrap_retry_budget": 3,
+}
 
 CV_FORMAT_PROFILES = {
     2: {
@@ -19,8 +26,7 @@ CV_FORMAT_PROFILES = {
         "expected_pages": 2,
         "insert_page_break_before_technical_projects": True,
         "bullet_length_min": 80,
-        "bullet_length_max": 115,
-        "compact_length_max": 110,
+        "bullet_length_max": BULLET_POLICY["hard_max_chars"],
     },
     1: {
         "name": "1-page",
@@ -29,8 +35,7 @@ CV_FORMAT_PROFILES = {
         "expected_pages": 1,
         "insert_page_break_before_technical_projects": False,
         "bullet_length_min": 80,
-        "bullet_length_max": 105,
-        "compact_length_max": 100,
+        "bullet_length_max": BULLET_POLICY["hard_max_chars"],
     },
 }
 
@@ -46,6 +51,8 @@ ARTIFACT_DEFAULT_PATHS = {
     "project_selections": Path(r"C:\Code\CV_crawl\.cv-apply-project-selections.json"),
     "evidence_packs": Path(r"C:\Code\CV_crawl\.cv-apply-evidence-pack-tmp.json"),
     "slot_plan": Path(r"C:\Code\CV_crawl\.cv-apply-slot-plan-tmp.json"),
+    "coverage_plan": Path(r"C:\Code\CV_crawl\.cv-apply-coverage-plan-tmp.json"),
+    "coverage_review": Path(r"C:\Code\CV_crawl\.cv-apply-coverage-review-tmp.json"),
     "draft_sections": Path(r"C:\Code\CV_crawl\.cv-apply-selections-tmp.json"),
     "meta": Path(r"C:\Code\CV_crawl\.cv-apply-meta-tmp.json"),
 }
@@ -59,6 +66,8 @@ STAGE_ORDER = [
     "gap_normalize",
     "evidence_select",
     "slot_plan",
+    "coverage_plan",
+    "coverage_review",
     "draft_work_experience",
     "draft_technical_projects",
     "assemble",
@@ -74,7 +83,25 @@ STAGE_ORDER = [
 ]
 
 INVALIDATION_RULES = {
-    "slot_plan": {"draft_work_experience", "draft_technical_projects", "assemble", "validate_deterministic", "render_docx_pdf", "layout_gate_2pages"},
+    "slot_plan": {
+        "coverage_plan",
+        "coverage_review",
+        "draft_work_experience",
+        "draft_technical_projects",
+        "assemble",
+        "validate_deterministic",
+        "render_docx_pdf",
+        "layout_gate_2pages",
+    },
+    "coverage_plan": {
+        "coverage_review",
+        "draft_work_experience",
+        "draft_technical_projects",
+        "assemble",
+        "validate_deterministic",
+        "render_docx_pdf",
+        "layout_gate_2pages",
+    },
     "fact_patch_apply": {"targeted_regen", "validate_deterministic", "render_docx_pdf", "layout_gate_2pages"},
     "feedback_classify_style": {"targeted_regen", "validate_deterministic", "render_docx_pdf", "layout_gate_2pages"},
 }

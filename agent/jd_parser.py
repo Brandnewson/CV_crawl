@@ -158,6 +158,95 @@ Rules:
 - Return valid JSON only, no markdown formatting"""
 
 
+PHRASE_SECTION_PATTERNS = {
+    "required_phrases": (
+        "required",
+        "must have",
+        "minimum qualifications",
+        "qualifications",
+    ),
+    "nice_to_have_phrases": (
+        "nice to have",
+        "preferred",
+        "bonus",
+        "good to have",
+    ),
+    "day_to_day_phrases": (
+        "day-to-day",
+        "what you'll do",
+        "what you will do",
+        "you will",
+    ),
+    "responsibility_phrases": (
+        "responsibilities",
+        "responsibility",
+        "role will",
+        "in this role",
+    ),
+}
+
+
+def _extract_phrase_inventory(description: str) -> dict[str, list[str]]:
+    lines = [re.sub(r"\s+", " ", line.strip()) for line in (description or "").splitlines()]
+    lines = [line for line in lines if line]
+    inventory: dict[str, list[str]] = {
+        "required_phrases": [],
+        "nice_to_have_phrases": [],
+        "day_to_day_phrases": [],
+        "responsibility_phrases": [],
+    }
+
+    def _add(bucket: str, phrase: str) -> None:
+        cleaned = re.sub(r"\s+", " ", phrase.strip().lower())
+        cleaned = cleaned.strip(" -:;,.")
+        if not cleaned:
+            return
+        if len(cleaned.split()) < 2 or len(cleaned.split()) > 6:
+            return
+        if cleaned not in inventory[bucket]:
+            inventory[bucket].append(cleaned)
+
+    current_bucket = ""
+    for line in lines:
+        low = line.lower()
+        line_text = re.sub(r"^\s*[-*•]+\s*", "", low).strip()
+        matched_bucket = ""
+        for bucket, markers in PHRASE_SECTION_PATTERNS.items():
+            if any(marker in low for marker in markers):
+                matched_bucket = bucket
+                break
+        if matched_bucket:
+            current_bucket = matched_bucket
+            continue
+
+        if not current_bucket:
+            continue
+
+        if len(line_text) > 140:
+            continue
+        # Keep explicit hyphenated/slash phrases and concise action phrases.
+        phrase_candidates: list[str] = []
+        phrase_candidates.extend(
+            re.findall(r"\b[a-z0-9]+(?:[-/][a-z0-9]+)+(?:\s+[a-z0-9]{2,}){0,2}\b", line_text)
+        )
+        phrase_candidates.extend(
+            [
+                " ".join(match)
+                for match in re.findall(
+                    r"\b([a-z0-9]{2,})\s+([a-z0-9]{2,})\s+([a-z0-9]{2,})(?:\s+([a-z0-9]{2,}))?",
+                    line_text,
+                )
+            ]
+        )
+        if 2 <= len(line_text.split()) <= 6:
+            phrase_candidates.append(line_text)
+
+        for candidate in phrase_candidates[:6]:
+            _add(current_bucket, candidate)
+
+    return inventory
+
+
 def classify_role_family(job_title: str, description: str) -> str:
     """
     Pure Python keyword match. Returns one of the four family strings.
@@ -351,10 +440,12 @@ def extract_keywords_safe(
         + keywords.get("soft_skills", [])
         + keywords.get("seniority_signals", [])
     )
+    phrase_inventory = _extract_phrase_inventory(cleaned)
     return {
         "keywords": {
             "required": required,
             "nice_to_have": nice_to_have,
+            "phrase_inventory": phrase_inventory,
         },
         "role_family": role_family,
     }

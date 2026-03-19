@@ -14,6 +14,8 @@ to that job, and produces a DOCX + PDF in `C:\Code\CV_crawl\output\`.
 | Experience cache | `C:\Code\CV_crawl\.experience-cache.json` |
 | Evidence pack tmp | `C:\Code\CV_crawl\.cv-apply-evidence-pack-tmp.json` |
 | Slot plan tmp | `C:\Code\CV_crawl\.cv-apply-slot-plan-tmp.json` |
+| Coverage plan tmp | `C:\Code\CV_crawl\.cv-apply-coverage-plan-tmp.json` |
+| Coverage review tmp | `C:\Code\CV_crawl\.cv-apply-coverage-review-tmp.json` |
 | Checkpoint | `C:\Code\CV_crawl\.cv-apply-checkpoint.json` |
 | Fact patches log | `C:\Code\CV_crawl\.cv-fact-patches.jsonl` |
 | Run metrics log | `C:\Code\CV_crawl\.cv-apply-run-metrics.jsonl` |
@@ -63,18 +65,20 @@ Runner stage graph:
 6. gap_normalize
 7. evidence_select
 8. slot_plan
-9. draft_work_experience
-10. draft_technical_projects
-11. assemble
-12. validate_deterministic
-13. render_docx_pdf
-14. layout_gate_2pages (expected-page gate)
-15. preview_feedback
-16. feedback_classify
-17. fact_patch_apply
-18. targeted_regen
-19. persist_db
-20. cover_letter_handoff
+9. coverage_plan
+10. coverage_review
+11. draft_work_experience
+12. draft_technical_projects
+13. assemble
+14. validate_deterministic
+15. render_docx_pdf
+16. layout_gate_2pages (expected-page + wrap gate)
+17. preview_feedback
+18. feedback_classify
+19. fact_patch_apply
+20. targeted_regen
+21. persist_db
+22. cover_letter_handoff
 
 ---
 ## ORCHESTRATOR - run this sequence
@@ -142,7 +146,8 @@ After job selection, ask:
 **"CV length for this run- Enter 1 or 2 pages:"**
 
 Set `cv_length_pages` to `1` or `2` and persist this in `C:\Code\CV_crawl\.cv-apply-meta-tmp.json`
-alongside `job_id`, `company`, and `job_title`.
+alongside `job_id`, `company`, and `job_title`. Also persist a run-level `cv_variant_id`
+for controlled same-job rerun variation.
 
 **Pre-run cleanup**: After the user selects a job, check whether temp files from a
 different job are present. Run:
@@ -156,6 +161,8 @@ selected_job_id = SELECTED_JOB_ID  # replace with the actual job_id integer
 to_delete = [
     r"C:\Code\CV_crawl\.cv-apply-evidence-pack-tmp.json",
     r"C:\Code\CV_crawl\.cv-apply-slot-plan-tmp.json",
+    r"C:\Code\CV_crawl\.cv-apply-coverage-plan-tmp.json",
+    r"C:\Code\CV_crawl\.cv-apply-coverage-review-tmp.json",
     r"C:\Code\CV_crawl\.cv-apply-jd-keywords-tmp.json",
     r"C:\Code\CV_crawl\.cv-apply-project-selections.json",
     r"C:\Code\CV_crawl\.cv-apply-selections-tmp.json",
@@ -208,7 +215,13 @@ Output contract:
 {
   "keywords": {
     "required": ["..."],
-    "nice_to_have": ["..."]
+    "nice_to_have": ["..."],
+    "phrase_inventory": {
+      "required_phrases": ["..."],
+      "nice_to_have_phrases": ["..."],
+      "day_to_day_phrases": ["..."],
+      "responsibility_phrases": ["..."]
+    }
   },
   "role_family": "..."
 }
@@ -397,6 +410,55 @@ This is a hard gate: paraphrase fallback is not allowed.
 
 ---
 
+### Step 4.8 - Coverage plan (explicit vs implicit allocation)
+
+Run:
+```
+uv run --project "C:/Code/CV_crawl" \
+    python "C:/Code/CV_crawl/tools/coverage_plan.py" \
+    --slot-plan "C:/Code/CV_crawl/.cv-apply-slot-plan-tmp.json" \
+    --jd-keywords "C:/Code/CV_crawl/.cv-apply-jd-keywords-tmp.json" \
+    --out "C:/Code/CV_crawl/.cv-apply-slot-plan-tmp.json" \
+    --report-out "C:/Code/CV_crawl/.cv-apply-coverage-plan-tmp.json"
+```
+
+Rules:
+- At least 50% of slots must be `coverage_mode=explicit`.
+- Explicit slots prioritize required terms, then nice-to-have terms and phrase inventory.
+- Writer consumes `coverage_mode` + `keyword_target` from writer brief cards.
+
+---
+
+### Step 4.9 - Coverage review gate (mandatory before drafting)
+
+Read `C:\Code\CV_crawl\.cv-apply-coverage-plan-tmp.json` and show:
+- uncovered required terms
+- uncovered nice-to-have terms
+- support evidence cards suggested for each uncovered term
+
+Ask user whether to:
+- accept uncovered terms for this run, or
+- provide additional facts / request reallocation.
+
+Persist acknowledgement to:
+`C:\Code\CV_crawl\.cv-apply-coverage-review-tmp.json`
+with at least:
+```json
+{"status":"approved","notes":"..."}
+```
+
+If user provides new facts, add:
+```json
+"cache_updates": {
+  "ad_hoc_<keyword>_<job_id>": "new fact answer"
+}
+```
+Then re-run from `evidence_select` so evidence/slot/coverage plans are refreshed.
+
+Do not draft until review file is approved.
+
+---
+
 ### Step 5 - CV Writer sub-agent
 
 **Before spawning the sub-agent**, extract the three keys the CV Writer needs from the
@@ -447,7 +509,9 @@ Each writer_brief_card provides:
 You must realise each card as one bullet. Do not invent new cards.
 
 === BULLET RULES ===
-- Target 100-108 characters per bullet, HARD MAX 115 characters
+- HARD MAX 120 characters per bullet
+- Optimise around 110 characters, preferring under over over-limit
+- Never brute-force truncation/cutoff to meet layout
 - No colons or semicolons anywhere in bullet text
 - Start each bullet with a strong past-tense action verb
 - Mirror JD keyword language exactly where the intent evidence supports it
@@ -477,7 +541,7 @@ Produce a single JSON object:
       "slot_index": 0,
       "section": "work_experience",
       "subsection": "Jaguar TCS Racing",
-      "text": "Bullet text here, 100-110 chars",
+      "text": "Bullet text here, optimised near 110 chars (<=120 hard max)",
       "intent_id": "intent_work_jaguar_tcs_racing_0",
       "provenance": {
         "primary_claim_id": "work_jaguar_tcs_racing_0",
@@ -517,7 +581,8 @@ This single gate enforces:
 - provenance presence
 - explicit_not conflict checks
 - style and banned phrase checks
-- canonical bullet length contract
+- canonical bullet length contract (hard max 120)
+- explicit-slot target inclusion + whole-CV explicit quota
 - verb deduplication
 - semantic anti-redundancy
 
@@ -549,32 +614,18 @@ Capture stdout as the DOCX path.
 
 ---
 
-### Step 6.5 - Visual line-wrap check (docx skill)
+### Step 6.5 - Deterministic wrap optimization gate
 
-**a. Convert rendered DOCX -> images:**
-```
-uv run --project "C:/Code/CV_crawl" \
-    python "C:/Code/CV_crawl/tools/render_cv_check_images.py" \
-    --docx-path "<docx_path>" \
-    --output-dir "C:/Code/CV_crawl"
-```
-This returns JSON with `page_count`, `pdf_path`, and `image_paths` for deterministic page checks + visual inspection.
+`layout_gate_2pages` now performs:
+- expected-page check
+- PDF-based wrapped-bullet detection
+- targeted wrapped-bullet rephrase retries (max retry budget), preserving:
+  - `intent_id`
+  - provenance
+  - explicit `keyword_target`
 
-**b. Visual inspection:**
-Read every page image with the Read tool. Visually identify any bullet point that spills onto a second line.
-Record each overflow as: `{slot_index, section, subsection, current_text}`.
-
-**c. If overflowing bullets found - shorten and re-render:**
-- Apply cv-bullet-writer skill rules to shorten each overflowing bullet:
-  `"Shorten to fit one printed line - wraps visually. Target <= 105 chars. All other bullet rules still apply."`
-- Patch `.cv-apply-selections-tmp.json` with rephrased bullets
-- Re-run Step 6 render (same output DOCX path)
-- Repeat steps a-b. **Max 3 iterations.**
-- After 3 iterations, surface still-wrapping bullets to user and ask whether to proceed.
-
-**d. Cleanup:**
-Delete the temporary images and PDF generated in this step.
-(The final PDF is produced from the approved DOCX in Step 8.)
+No brute-force truncation or hard cutting is allowed in this gate.
+If retries are exhausted, surface unresolved wrapped slots to user for targeted edits.
 
 ---
 
@@ -768,6 +819,8 @@ import os
 for f in [
     r"C:\Code\CV_crawl\.cv-apply-evidence-pack-tmp.json",
     r"C:\Code\CV_crawl\.cv-apply-slot-plan-tmp.json",
+    r"C:\Code\CV_crawl\.cv-apply-coverage-plan-tmp.json",
+    r"C:\Code\CV_crawl\.cv-apply-coverage-review-tmp.json",
     r"C:\Code\CV_crawl\.cv-apply-jd-keywords-tmp.json",
     r"C:\Code\CV_crawl\.cv-apply-jd-tmp.txt",
 ]:
