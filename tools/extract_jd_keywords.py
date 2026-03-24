@@ -7,9 +7,10 @@ import json
 from pathlib import Path
 
 from agent.jd_parser import extract_keywords_safe
+from cv_apply_contract import ARTIFACT_DEFAULT_PATHS
 
 
-DEFAULT_JD_PATH = Path(__file__).resolve().parent.parent / ".cv-apply-jd-tmp.txt"
+DEFAULT_JD_PATH = ARTIFACT_DEFAULT_PATHS["jd_text"]
 
 
 def _write(path: Path, payload: dict) -> None:

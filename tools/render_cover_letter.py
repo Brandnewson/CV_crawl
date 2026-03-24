@@ -72,19 +72,6 @@ def _set_font(run, name: str, size_pt: float, bold: bool = False) -> None:
     run.font.bold = bold
 
 
-def _add_paragraph(doc, text: str, font_name: str = "Garamond", font_size: float = 11,
-                   space_before: float = 0, space_after: float = 6) -> None:
-    """Add a paragraph with consistent formatting."""
-    from docx.shared import Pt
-    para = doc.add_paragraph()
-    para.paragraph_format.space_before = Pt(space_before)
-    para.paragraph_format.space_after = Pt(space_after)
-    para.paragraph_format.line_spacing = 1.15
-    run = para.add_run(text)
-    _set_font(run, font_name, font_size)
-    return para
-
-
 def render(data: dict) -> Path:
     from docx import Document
     from docx.shared import Cm, Pt

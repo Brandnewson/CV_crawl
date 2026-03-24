@@ -4,7 +4,6 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 import anthropic
 
@@ -125,16 +124,6 @@ KEYWORD_ALIAS_MAP = {
     "oauth": ["oauth2", "oidc", "openid connect"],
     "documentation": ["technical writing", "design docs", "architecture docs"],
     "mentoring": ["coaching", "developer mentoring"],
-}
-
-# Order matters: check more specific levels first
-SENIORITY_CHECK_ORDER = ["senior", "junior", "junior-mid", "mid"]
-
-SENIORITY_RULES = {
-    "junior": ["junior", "graduate", "entry level", "entry-level", "intern", "placement", "trainee"],
-    "junior-mid": ["associate", "junior-mid", "early career"],
-    "mid": ["mid-level", "mid level", "intermediate", "engineer ii"],
-    "senior": ["senior", "sr.", "lead", "principal", "staff", "head of", "director", "vp", "manager"],
 }
 
 KEYWORD_EXTRACTION_PROMPT = """Extract keywords from this job description for a {role_family} role.
@@ -268,33 +257,6 @@ def classify_role_family(job_title: str, description: str) -> str:
 
     # Return family with highest score
     return max(scores, key=scores.get)
-
-
-def classify_seniority(job_title: str, description: str) -> str:
-    """
-    Pure Python. Title takes priority.
-    Default to 'mid' if ambiguous — most unlabelled roles are mid-level.
-    Returns: 'junior' | 'junior-mid' | 'mid' | 'senior'
-    """
-    title_lower = job_title.lower()
-    desc_lower = description.lower()
-
-    # Check title first (takes priority), in order of specificity
-    for level in SENIORITY_CHECK_ORDER:
-        keywords = SENIORITY_RULES[level]
-        for kw in keywords:
-            if kw in title_lower:
-                return level
-
-    # Then check description
-    for level in SENIORITY_CHECK_ORDER:
-        keywords = SENIORITY_RULES[level]
-        for kw in keywords:
-            if kw in desc_lower:
-                return level
-
-    # Default to mid if ambiguous
-    return "mid"
 
 
 def _log_api_usage(
@@ -451,84 +413,3 @@ def extract_keywords_safe(
     }
 
 
-def score_bullet_against_keywords(bullet: str, keywords: dict) -> tuple[float, list[str]]:
-    """
-    Pure Python, no LLM.
-    Returns (score, matched_keywords).
-    Required keyword hit = 1.0 weight, nice-to-have = 0.5, domain = 0.3.
-    Normalise to 0.0–1.0. Case-insensitive substring match.
-    """
-    bullet_lower = bullet.lower()
-    matched = []
-    weighted_score = 0.0
-
-    # Weight definitions
-    weights = {
-        "required_keywords": 1.0,
-        "nice_to_have_keywords": 0.5,
-        "technical_skills": 0.8,
-        "soft_skills": 0.3,
-        "domain_keywords": 0.3,
-        "seniority_signals": 0.1
-    }
-
-    def normalise_keyword(keyword: str) -> str:
-        return re.sub(r"\s+", " ", (keyword or "").strip().lower())
-
-    def is_word_phrase(variant: str) -> bool:
-        return bool(re.fullmatch(r"[a-z0-9 ]+", variant))
-
-    def build_variants(keyword: str) -> list[str]:
-        canonical = normalise_keyword(keyword)
-        aliases = KEYWORD_ALIAS_MAP.get(canonical, [])
-        variants = [canonical] + [normalise_keyword(alias) for alias in aliases]
-        return list(dict.fromkeys([variant for variant in variants if variant]))
-
-    def keyword_in_bullet(keyword: str) -> bool:
-        for variant in build_variants(keyword):
-            if is_word_phrase(variant):
-                pattern = r"\b" + r"\s+".join(re.escape(token) for token in variant.split(" ")) + r"\b"
-                if re.search(pattern, bullet_lower):
-                    return True
-            elif variant in bullet_lower:
-                return True
-        return False
-
-    for category, weight in weights.items():
-        kw_list = keywords.get(category, [])
-        for kw in kw_list:
-            if not kw:
-                continue
-            if keyword_in_bullet(str(kw)):
-                weighted_score += weight
-                matched.append(normalise_keyword(str(kw)))
-
-    matched = list(dict.fromkeys(matched))
-
-    # Normalise to 0.0-1.0 using a fixed realistic max (5.0 = excellent multi-category match)
-    normalised_score = min(1.0, weighted_score / 5.0)
-    return round(normalised_score, 3), matched
-
-
-def get_job_from_db(job_id: int, conn, user_id: int = 1) -> Optional[dict]:
-    """Fetch job details from database."""
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT id, company, title, description, location, job_url
-        FROM jobs
-        WHERE id = %s AND user_id = %s
-    """, (job_id, user_id))
-    row = cur.fetchone()
-    cur.close()
-
-    if not row:
-        return None
-
-    return {
-        "id": row[0],
-        "company": row[1],
-        "title": row[2],
-        "description": row[3],
-        "location": row[4],
-        "job_url": row[5]
-    }

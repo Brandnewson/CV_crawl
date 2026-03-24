@@ -1,4 +1,4 @@
-# cv-bullet-writer skill
+﻿# cv-bullet-writer skill
 
 Applies whenever you are writing or generating CV bullet points - for work experience
 or technical projects. These rules are non-negotiable and override any general writing
@@ -57,7 +57,7 @@ capability restored), no filler.
 
 ## Work experience constraint
 
-For work experience bullets, ONLY use facts from `.cv-work-experience.json`.
+For work experience bullets, ONLY use facts from `data/cv-work-experience.json`.
 Do not infer, extrapolate, or add anything beyond what is explicitly listed in the
 verified_facts for each role. If you do not have enough verified facts to fill a
 bullet slot with a quality bullet, ask the user rather than inventing content.
@@ -70,3 +70,4 @@ bullet slot with a quality bullet, ask the user rather than inventing content.
 - Hard maximum: 120 characters
 - Hard minimum: 80 characters (a bullet shorter than this is almost certainly
   too vague)
+

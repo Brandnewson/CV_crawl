@@ -67,3 +67,14 @@ uv run --project "C:/Code/CV_crawl" python "C:/Code/CV_crawl/tools/<script>.py" 
 - Rule:
   - Emit explicit fallback summary with `llm_used`, `fallback_used`, and `error_types`.
   - Keep deterministic fallback behavior unchanged.
+
+## L00X - Wrap Gate Must Run Before User Approval Loop
+
+- Symptom:
+  - User approves CV in Step 7 but the rendered DOCX/PDF overflows to 2 pages due to bullet wrapping.
+- Root cause:
+  - Step 6.5 (wrap_optimizer.py) was skipped and run post-approval instead of pre-approval.
+- Rule:
+  - Always run `tools/wrap_optimizer.py` after Step 6 (render_cv.py) and BEFORE showing the preview in Step 7.
+  - Only present the approval loop once the wrap gate confirms 0 wrapped bullets.
+  - If the slot plan is regenerated mid-run (e.g. after user feedback), re-run coverage_plan.py and re-apply any keyword_target patches before re-validating.

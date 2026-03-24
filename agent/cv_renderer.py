@@ -309,37 +309,3 @@ def render_cv(
             shutil.rmtree(temp_dir)
 
 
-def verify_rendering(output_path: Path, expected_bullets: list[tuple[str, str, int, str]]) -> dict:
-    """
-    Verify that rendered DOCX contains expected bullet text.
-
-    Args:
-        output_path: Path to rendered DOCX
-        expected_bullets: List of (section, subsection, slot_index, expected_text)
-
-    Returns:
-        {
-            "valid": bool,
-            "total_expected": int,
-            "found": int,
-            "missing": [(section, subsection, slot_index, expected_text), ...]
-        }
-    """
-    doc = Document(output_path)
-    all_text = '\n'.join(p.text for p in doc.paragraphs)
-
-    found = 0
-    missing = []
-
-    for section, subsection, slot_index, expected_text in expected_bullets:
-        if expected_text in all_text:
-            found += 1
-        else:
-            missing.append((section, subsection, slot_index, expected_text))
-
-    return {
-        "valid": len(missing) == 0,
-        "total_expected": len(expected_bullets),
-        "found": found,
-        "missing": missing
-    }

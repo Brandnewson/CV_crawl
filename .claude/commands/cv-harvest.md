@@ -1,4 +1,4 @@
-# /cv-harvest - Personal CV Intelligence Pipeline
+﻿# /cv-harvest - Personal CV Intelligence Pipeline
 
 Orchestrates four parallel sub-agents across your Code folder, GitHub profile,
 and GraduateJobHunting docs, then synthesises per-project CV entries (title,
@@ -18,7 +18,7 @@ description, bullet points) tuned to the roles you are actually applying for.
 
 ## ORCHESTRATOR - run this sequence
 
-### Step -1 — Detect repo root and load user config
+### Step -1 â€” Detect repo root and load user config
 
 Run:
 ```
@@ -349,7 +349,7 @@ Write full output (formatted bullets + raw XML) to:
 After writing the output file, produce a structured JSON experience store.
 
 Parse `<cv_output>` + the four intelligence XML blocks and write to
-`{REPO_ROOT}\.cv-harvest-store.json`:
+`{REPO_ROOT}\data/cv-harvest-store.json`:
 
 ```python
 import json, re, sys
@@ -410,11 +410,12 @@ store = {
     "projects": projects
 }
 
-Path(r"{REPO_ROOT}\.cv-harvest-store.json").write_text(
+Path(r"{REPO_ROOT}\data/cv-harvest-store.json").write_text(
     json.dumps(store, indent=2, ensure_ascii=False), encoding="utf-8"
 )
-print(f"Wrote .cv-harvest-store.json - {len(projects)} projects, "
+print(f"Wrote data/cv-harvest-store.json - {len(projects)} projects, "
       f"{sum(len(p['bullets']) for p in projects)} bullets")
 ```
 
 Run this Python block inline (paste to a python3 -c call or write to a temp file and execute).
+

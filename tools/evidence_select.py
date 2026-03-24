@@ -159,7 +159,7 @@ def _build_work_claims(
                     keyword_links=_keyword_links(text, keywords),
                     confidence="high",
                     source_ref={
-                        "source": ".cv-work-experience.json",
+                        "source": "data/cv-work-experience.json",
                         "org": org,
                         "fact_index": idx,
                         "explicit_not": role.get("explicit_not", []),
@@ -200,7 +200,7 @@ def _build_project_claims(
                     keyword_links=list(links),
                     confidence=confidence,
                     source_ref={
-                        "source": ".cv-harvest-store.json",
+                        "source": "data/cv-harvest-store.json",
                         "project_name": project_name,
                         "project_title": project_title,
                         "bullet_index": idx,
@@ -381,10 +381,10 @@ def _parse_keywords(raw: dict[str, Any]) -> dict[str, list[str]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build claim-graph evidence packs for CV planning")
-    parser.add_argument("--work-exp", required=True, help="Path to .cv-work-experience.json")
-    parser.add_argument("--store", required=True, help="Path to .cv-harvest-store.json")
+    parser.add_argument("--work-exp", required=True, help="Path to data/cv-work-experience.json")
+    parser.add_argument("--store", required=True, help="Path to data/cv-harvest-store.json")
     parser.add_argument("--keywords", required=True, help="Path to extracted keyword JSON")
-    parser.add_argument("--project-selections", required=True, help="Path to .cv-apply-project-selections.json")
+    parser.add_argument("--project-selections", required=True, help="Path to .tmp/cv-apply-project-selections.json")
     parser.add_argument("--template-map", help="Optional template_map.json for slot_count alignment")
     parser.add_argument("--out", required=True, help="Output path for evidence pack JSON")
     args = parser.parse_args()

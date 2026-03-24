@@ -2,7 +2,6 @@
 
 import re
 from pydantic import BaseModel, field_validator, model_validator
-from pathlib import Path
 from typing import Optional, List
 
 
@@ -236,51 +235,3 @@ class UserSelections(BaseModel):
     hidden_projects: List[str]
     header_swaps: List[dict] = []   # [{section, subsection, header_xpath_index, text}]
     session_timestamp: str
-
-
-def validate_bullet_text(text: str) -> tuple[bool, str, List[str]]:
-    """
-    Validate bullet text without creating a full BulletCandidate.
-
-    Returns: (is_valid, error_message, warnings)
-    - is_valid: True if no hard errors
-    - error_message: Empty string if valid, error description otherwise
-    - warnings: List of warning messages
-    """
-    warnings = []
-
-    # Check empty
-    if not text or not text.strip():
-        return False, "Bullet text cannot be empty", []
-
-    text = text.strip()
-    char_count = len(text)
-
-    # Hard error: too long
-    if char_count > HARD_CHAR_LIMIT:
-        return False, f"Exceeds {HARD_CHAR_LIMIT} characters ({char_count})", []
-
-    # Hard error: starts with I
-    if text.lower().startswith("i "):
-        return False, "Cannot start with 'I'", []
-
-    # Hard error: banned punctuation
-    if ':' in text or ';' in text:
-        return False, "Bullet contains banned punctuation (':' or ';')", []
-
-    # Hard error: banned phrase
-    text_lower = text.lower()
-    for phrase in BANNED_PHRASES:
-        if phrase in text_lower:
-            return False, f"Contains banned phrase: '{phrase}'", []
-
-    # Warning: over soft limit
-    if char_count > SOFT_CHAR_LIMIT:
-        warnings.append(f"Over {SOFT_CHAR_LIMIT} characters ({char_count})")
-
-    # Warning: no action verb
-    first_word = text.split()[0].lower().rstrip('.,;:') if text.split() else ""
-    if first_word not in ACTION_VERBS:
-        warnings.append(f"May not start with action verb: '{first_word}'")
-
-    return True, "", warnings

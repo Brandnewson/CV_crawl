@@ -1,4 +1,4 @@
-# /cv-setup - Interactive Profile & Facts Setup
+﻿# /cv-setup - Interactive Profile & Facts Setup
 
 Guides you through populating all the fact files the CV pipeline depends on.
 Run this once when you first clone the repo, then again whenever you want to update
@@ -11,18 +11,18 @@ your profile, add a role, or add a new cover-letter story.
 | File | Purpose |
 |---|---|
 | `user_config.yaml` | Machine-specific paths and GitHub username |
-| `.cv-profile.json` | Your name, address, education, contact details |
-| `.cv-work-experience.json` | Verified facts per work experience role |
-| `.cv-harvest-store.json` | Technical project store (auto-populated in Step 4) |
-| `.cv-facts-promoted.json` | Reusable skill / technology facts |
-| `.experience-cache.json` | Per-job Q&A cache (auto-managed) |
+| `data/cv-profile.json` | Your name, address, education, contact details |
+| `data/cv-work-experience.json` | Verified facts per work experience role |
+| `data/cv-harvest-store.json` | Technical project store (auto-populated in Step 4) |
+| `data/cv-facts-promoted.json` | Reusable skill / technology facts |
+| `data/experience-cache.json` | Per-job Q&A cache (auto-managed) |
 | `story-bank.json` | Cover letter stories with facts |
 
 ---
 
-## ORCHESTRATOR — run this sequence
+## ORCHESTRATOR â€” run this sequence
 
-### Step -1 — Detect repo root
+### Step -1 â€” Detect repo root
 
 Run:
 ```
@@ -33,18 +33,18 @@ Store the output as `REPO_ROOT`. Use `{REPO_ROOT}` for all paths below.
 
 ---
 
-### Step 0 — File inventory scan
+### Step 0 â€” File inventory scan
 
 Check which files exist and which sections are complete:
 
 ```
 Read and check:
-  {REPO_ROOT}/user_config.yaml        — exists? github_username field non-empty?
-  .cv-profile.json           — schema_version field exists AND education array is non-empty?
-  .cv-work-experience.json   — exists AND work_experience array is non-empty?
-  .cv-harvest-store.json     — exists AND projects array is non-empty?
-  .cv-facts-promoted.json    — exists?
-  .experience-cache.json     — exists? count non-null entries with a job_id field
+  {REPO_ROOT}/user_config.yaml        â€” exists? github_username field non-empty?
+  data/cv-profile.json           â€” schema_version field exists AND education array is non-empty?
+  data/cv-work-experience.json   â€” exists AND work_experience array is non-empty?
+  data/cv-harvest-store.json     â€” exists AND projects array is non-empty?
+  data/cv-facts-promoted.json    â€” exists?
+  data/experience-cache.json     â€” exists? count non-null entries with a job_id field
   story-bank.json at {REPO_ROOT}/.claude/skills/cover-letter-generation/story-bank.json
 ```
 
@@ -53,13 +53,13 @@ Display a status table:
 ```
 Checking your profile files...
 
-  [x] user_config.yaml         — exists  (github: <github_username>)    COMPLETE / MISSING
-  [x] .cv-profile.json         — exists  (name: <name>)                 COMPLETE / INCOMPLETE
-  [x] .cv-work-experience.json — exists  (<N> roles)                    COMPLETE / MISSING
-  [x] .cv-harvest-store.json   — exists  (<N> projects)                 COMPLETE / MISSING
-  [x] .cv-facts-promoted.json  — exists                                 COMPLETE / MISSING
-  [~] .experience-cache.json   — exists  (<N> answered entries, <M> job_ids)
-  [x] story-bank.json          — exists  (<N> stories)
+  [x] user_config.yaml         â€” exists  (github: <github_username>)    COMPLETE / MISSING
+  [x] data/cv-profile.json         â€” exists  (name: <name>)                 COMPLETE / INCOMPLETE
+  [x] data/cv-work-experience.json â€” exists  (<N> roles)                    COMPLETE / MISSING
+  [x] data/cv-harvest-store.json   â€” exists  (<N> projects)                 COMPLETE / MISSING
+  [x] data/cv-facts-promoted.json  â€” exists                                 COMPLETE / MISSING
+  [~] data/experience-cache.json   â€” exists  (<N> answered entries, <M> job_ids)
+  [x] story-bank.json          â€” exists  (<N> stories)
 
 What would you like to do?
   [1] First-time setup (fill all missing sections in order)
@@ -72,11 +72,11 @@ What would you like to do?
 ```
 
 Execute whichever section the user requests. Sections are independent and can be run
-in any order. If the user selects [1], run sections 0b → 1 → 2 → 3 → 4 → 5 → summary.
+in any order. If the user selects [1], run sections 0b â†’ 1 â†’ 2 â†’ 3 â†’ 4 â†’ 5 â†’ summary.
 
 ---
 
-### Step 0b — User config (user_config.yaml)
+### Step 0b â€” User config (user_config.yaml)
 
 **Target file:** `{REPO_ROOT}/user_config.yaml`
 
@@ -103,9 +103,9 @@ Print: `Saved user_config.yaml`
 
 ---
 
-### Step 1 — Personal profile
+### Step 1 â€” Personal profile
 
-**Target file:** `{REPO_ROOT}/.cv-profile.json`
+**Target file:** `{REPO_ROOT}/data/cv-profile.json`
 
 Load the file if it exists. For each field, show the current value in brackets and let
 the user press Enter to keep it or type a new value.
@@ -115,13 +115,13 @@ the user press Enter to keep it or type a new value.
 ```
 
 Prompt for each field:
-- `Name [<current>]:` — maps to `"name"`
-- `Email [<current>]:` — maps to `"email"`
-- `Address line 1 [<current>]:` — maps to `"address_line1"`
-- `Address line 2 [<current>]:` — maps to `"address_line2"`
-- `Address line 3 [<current>]:` — maps to `"address_line3"`
-- `GitHub (e.g. github.com/username) [<current or blank>]:` — maps to `"github"`
-- `LinkedIn URL [<current or blank>]:` — maps to `"linkedin"`
+- `Name [<current>]:` â€” maps to `"name"`
+- `Email [<current>]:` â€” maps to `"email"`
+- `Address line 1 [<current>]:` â€” maps to `"address_line1"`
+- `Address line 2 [<current>]:` â€” maps to `"address_line2"`
+- `Address line 3 [<current>]:` â€” maps to `"address_line3"`
+- `GitHub (e.g. github.com/username) [<current or blank>]:` â€” maps to `"github"`
+- `LinkedIn URL [<current or blank>]:` â€” maps to `"linkedin"`
 
 ```
 --- EDUCATION ---
@@ -133,7 +133,7 @@ For each education entry (add new one if count increases):
 - `Degree / qualification [<current>]:`
 - `Year of graduation (or expected) [<current>]:`
 - `Grade or classification (e.g. First Class predicted) [<current>]:`
-- `Notable modules — comma-separated, press Enter to skip [<current>]:`
+- `Notable modules â€” comma-separated, press Enter to skip [<current>]:`
 
 ```
 --- PRIOR QUALIFICATIONS ---
@@ -145,7 +145,7 @@ For each prior qualification:
 - `Qualification title [<current>]:`
 - `Year completed [<current>]:`
 
-Write the completed v2 schema to `.cv-profile.json`:
+Write the completed v2 schema to `data/cv-profile.json`:
 
 ```json
 {
@@ -176,13 +176,13 @@ Write the completed v2 schema to `.cv-profile.json`:
 }
 ```
 
-Print: `Saved .cv-profile.json`
+Print: `Saved data/cv-profile.json`
 
 ---
 
-### Step 2 — Work experience roles
+### Step 2 â€” Work experience roles
 
-**Target file:** `{REPO_ROOT}/.cv-work-experience.json`
+**Target file:** `{REPO_ROOT}/data/cv-work-experience.json`
 
 Load the file if it exists.
 
@@ -190,7 +190,7 @@ Display existing roles:
 ```
 --- WORK EXPERIENCE ---
 Existing roles:
-  1. <org> — <role>  [<N> facts, <M> explicit_not constraints]
+  1. <org> â€” <role>  [<N> facts, <M> explicit_not constraints]
   2. ...
 
 Options:
@@ -200,7 +200,7 @@ Options:
   [N] Skip / done
 ```
 
-#### 2a — Existing CV upload (primary path)
+#### 2a â€” Existing CV upload (primary path)
 
 Before prompting for individual roles, ask:
 
@@ -228,7 +228,7 @@ CV file path (DOCX preferred, Enter to skip):
 - Display extracted roles for quick review:
   ```
   Extracted from CV:
-    1. <Org Name> — <Role Title> (<Start> – <End>)
+    1. <Org Name> â€” <Role Title> (<Start> â€“ <End>)
        1. <fact text>
        2. <fact text>
        ...  (<N> facts)
@@ -262,7 +262,7 @@ Is this a technical / software engineering role? [Y/n]:
 
 Then:
 ```
-Tell me about this role. Describe what you did, built, or achieved — one fact per line.
+Tell me about this role. Describe what you did, built, or achieved â€” one fact per line.
 Type a blank line when you're done. Be specific: tools, outcomes, scale.
 
 Fact 1:
@@ -270,7 +270,7 @@ Fact 2:
 ...
 ```
 
-Parse each line as a separate entry in `verified_facts[]`. Do not paraphrase or combine —
+Parse each line as a separate entry in `verified_facts[]`. Do not paraphrase or combine â€”
 store the user's exact words.
 
 ```
@@ -288,7 +288,7 @@ Append the new role object to `work_experience[]` and write the file.
 
 Display the role's `verified_facts` numbered list:
 ```
-<org> — <role>
+<org> â€” <role>
 Facts:
   1. <fact text>
   2. <fact text>
@@ -306,11 +306,11 @@ Constraints (explicit_not):
 
 Apply changes and write the file.
 
-Print: `Saved .cv-work-experience.json  (<N> roles, <total facts> facts)`
+Print: `Saved data/cv-work-experience.json  (<N> roles, <total facts> facts)`
 
 ---
 
-### Step 3 — Cover letter stories
+### Step 3 â€” Cover letter stories
 
 **Target file:** `{REPO_ROOT}/.claude/skills/cover-letter-generation/story-bank.json`
 
@@ -320,7 +320,7 @@ Display existing stories:
 ```
 --- COVER LETTER STORIES ---
 Existing stories:
-  1. <label>  —  <title>  [<N> facts]
+  1. <label>  â€”  <title>  [<N> facts]
   2. ...
 
 Options:
@@ -335,11 +335,11 @@ Options:
 ```
 Story label (short snake_case, e.g. jaguar_alkamel):
 Story title (human-readable, e.g. "Jaguar Alkamel Timing Feed Converter"):
-Themes — comma-separated descriptive themes (e.g. "ownership, tool-building, stakeholder"):
-Keyword heuristics — JD keywords that would make this story relevant (comma-separated):
+Themes â€” comma-separated descriptive themes (e.g. "ownership, tool-building, stakeholder"):
+Keyword heuristics â€” JD keywords that would make this story relevant (comma-separated):
 
 Now add the facts for this story. One sentence per line. Press Enter on a blank line when done.
-Only include facts you know to be true — no embellishment.
+Only include facts you know to be true â€” no embellishment.
 
 Fact 1:
 Fact 2:
@@ -351,7 +351,7 @@ Do not say 2:
 ...
 ```
 
-Build and add the story object. Omit `work_experience_ref` (leave null) — it can be
+Build and add the story object. Omit `work_experience_ref` (leave null) â€” it can be
 added manually later.
 
 **Editing an existing story:**
@@ -364,11 +364,11 @@ Print: `Saved story-bank.json  (<N> stories)`
 
 ---
 
-### Step 4 — Technical projects harvest
+### Step 4 â€” Technical projects harvest
 
 Work experience comes from Step 2. Technical projects come from two independent sources.
 
-#### Source A — CV technical projects section
+#### Source A â€” CV technical projects section
 
 If the uploaded CV (Step 2) contained a technical projects section, those projects were
 already extracted. Show them for quick review:
@@ -382,7 +382,7 @@ These will be included in your project store. Edit? [Y/n]:
 
 If the user wants to edit a project, show its bullets numbered and offer add/delete.
 
-#### Source B — GitHub public repos (supplemental)
+#### Source B â€” GitHub public repos (supplemental)
 
 Read `GITHUB_USERNAME` from `user_config.yaml`. If blank, skip this source and note it.
 
@@ -393,20 +393,20 @@ Fetching public repos for github.com/{GITHUB_USERNAME}...
 - Call `https://api.github.com/users/{GITHUB_USERNAME}/repos?sort=updated&per_page=30`
 - For each repo updated in the last 24 months: read description, topics, README (first 500 chars),
   latest commit messages
-- Generate 2–3 project bullet candidates per repo
+- Generate 2â€“3 project bullet candidates per repo
 - Present them for inclusion/exclusion:
   ```
   GitHub repos found (not already in CV):
-    [x] <repo_name>  — <language>, <topics>
-    [x] <repo_name>  — <language>, <topics>
-    [ ] dotfiles     — (low signal, skipped)
+    [x] <repo_name>  â€” <language>, <topics>
+    [x] <repo_name>  â€” <language>, <topics>
+    [ ] dotfiles     â€” (low signal, skipped)
   Include/exclude? [Enter to accept checked, type numbers to toggle]:
   ```
 - Accepted repos are merged into the project store with generated bullets
 
 #### Merge and write
 
-Combine CV projects + accepted GitHub repos → write `{REPO_ROOT}/.cv-harvest-store.json`:
+Combine CV projects + accepted GitHub repos â†’ write `{REPO_ROOT}/data/cv-harvest-store.json`:
 
 ```json
 {
@@ -438,7 +438,7 @@ Print:
 Project store written:
   From CV:     <N> projects
   From GitHub: <M> projects
-  Total:       <N+M> projects, <X> bullets → .cv-harvest-store.json
+  Total:       <N+M> projects, <X> bullets â†’ data/cv-harvest-store.json
 ```
 
 If both sources were skipped/empty, print a note that `/cv-harvest` can populate this
@@ -446,13 +446,13 @@ file automatically from a deeper repo + GitHub scan.
 
 ---
 
-### Step 5 — Promote facts from experience cache (optional)
+### Step 5 â€” Promote facts from experience cache (optional)
 
 **Target files:**
-- `{REPO_ROOT}/.experience-cache.json` (read + prune)
-- `{REPO_ROOT}/.cv-facts-promoted.json` (write promotions)
+- `{REPO_ROOT}/data/experience-cache.json` (read + prune)
+- `{REPO_ROOT}/data/cv-facts-promoted.json` (write promotions)
 
-Load `.experience-cache.json`. Skip this step entirely if there are no entries with a
+Load `data/experience-cache.json`. Skip this step entirely if there are no entries with a
 non-null `answer` and a `ts` (timestamp) field.
 
 ```
@@ -471,7 +471,7 @@ Answer: "<answer text>"
 Job:    <job_id>  |  Date: <ts>
 
   [K] Keep as job-specific (leave in cache)
-  [P] Promote to permanent facts (move to .cv-facts-promoted.json)
+  [P] Promote to permanent facts (move to data/cv-facts-promoted.json)
   [D] Delete (remove from cache entirely)
   [S] Skip rest of entries
 ```
@@ -482,7 +482,7 @@ Category? [skills / technology_answers / deployment_answers / other]:
 Key name for this fact (e.g. "cpp", "node_js", "production_deployment"):
 ```
 
-Add to `.cv-facts-promoted.json` under the chosen category:
+Add to `data/cv-facts-promoted.json` under the chosen category:
 ```json
 {
   "answer": "<answer text>",
@@ -491,33 +491,34 @@ Add to `.cv-facts-promoted.json` under the chosen category:
 ```
 
 When done reviewing, remove all [D]-marked entries and any [P]-marked entries from
-`.experience-cache.json`. Write both files.
+`data/experience-cache.json`. Write both files.
 
-Update `_meta.archived_jobs` in `.experience-cache.json` with any job_ids that were
+Update `_meta.archived_jobs` in `data/experience-cache.json` with any job_ids that were
 fully reviewed (all their entries resolved).
 
 Print:
 ```
-Promoted <N> facts to .cv-facts-promoted.json
-Removed  <M> entries from .experience-cache.json
+Promoted <N> facts to data/cv-facts-promoted.json
+Removed  <M> entries from data/experience-cache.json
 ```
 
 ---
 
-### Step 6 — Summary
+### Step 6 â€” Summary
 
 Print:
 
 ```
 --- SETUP COMPLETE ---
-  user_config.yaml           ✓  github: <username>, output: <cv_output_dir>
-  .cv-profile.json           ✓  <name>
-  .cv-work-experience.json   ✓  <N> roles, <total> facts
-  .cv-harvest-store.json     ✓  <N> projects, <X> bullets
-  story-bank.json            ✓  <N> stories
+  user_config.yaml           âœ“  github: <username>, output: <cv_output_dir>
+  data/cv-profile.json           âœ“  <name>
+  data/cv-work-experience.json   âœ“  <N> roles, <total> facts
+  data/cv-harvest-store.json     âœ“  <N> projects, <X> bullets
+  story-bank.json            âœ“  <N> stories
 
 You are ready to run:
-  /cv-discover  — search for and score new jobs
-  /cv-apply     — generate a tailored CV for any job in your DB
-  /cv-harvest   — re-run project analysis to refresh your experience store
+  /cv-discover  â€” search for and score new jobs
+  /cv-apply     â€” generate a tailored CV for any job in your DB
+  /cv-harvest   â€” re-run project analysis to refresh your experience store
 ```
+

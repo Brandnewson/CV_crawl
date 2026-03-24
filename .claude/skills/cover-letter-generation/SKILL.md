@@ -1,4 +1,4 @@
-# cover-letter-generation skill
+﻿# cover-letter-generation skill
 
 Generates a tailored, human-sounding cover letter for a specific job application.
 Called from `/cv-apply` after the CV is approved.
@@ -17,7 +17,7 @@ are loaded from `story-bank.json` on demand; only selected stories are passed to
 writers. Style rules are included only in writing prompts.
 
 **3. Context-rot immunity** - no step relies on in-memory session variables from the
-calling conversation. All shared state is written to `.cv-cl-checkpoint.json` after
+calling conversation. All shared state is written to `.tmp/cv-cl-checkpoint.json` after
 each step and read back fresh at the start of the next. Long conversations can never
 corrupt state.
 
@@ -28,14 +28,14 @@ corrupt state.
   - A persistent `past-errors` log tracks recurring writing and layout failures and
     the fixes that worked.
   - After each approved letter, a retrospective entry is appended to
-    `.cv-cl-improvement-log.jsonl`. The story scorer reads the last 10 entries to
+    `logs/cv-cl-improvement-log.jsonl`. The story scorer reads the last 10 entries to
     bias future selections based on past success.
 
 ---
 
 ## Checkpoint file
 
-Path: `{REPO_ROOT}\.cv-cl-checkpoint.json`
+Path: `{REPO_ROOT}\.tmp\cv-cl-checkpoint.json`
 
 This is the single source of truth. Every step reads it at start and writes it at end.
 Its schema tracks progress so the skill can resume from any point.
@@ -148,7 +148,7 @@ STYLE RULES - apply without exception:
 
 ## Step 0 - Resume detection
 
-**Before anything else**, check if `{REPO_ROOT}\.cv-cl-checkpoint.json` exists.
+**Before anything else**, check if `{REPO_ROOT}\.tmp\cv-cl-checkpoint.json` exists.
 
 If it exists, read it and check `job_id` against the current `job_id` from the caller.
 
@@ -201,7 +201,7 @@ drop generic ones like "communication" or "team player".
 
 **Purpose:** load or collect the candidate's address. One task, one file.
 
-Read `{REPO_ROOT}\.cv-profile.json`.
+Read `{REPO_ROOT}\data\cv-profile.json`.
 
 If it does not exist or is missing any required field, prompt the user **once**:
 ```
@@ -212,7 +212,7 @@ Sender details needed for letter header:
   Address line 3 (city, postcode):
   Email:
 ```
-Save their responses to `.cv-profile.json`.
+Save their responses to `data/cv-profile.json`.
 
 Do not re-prompt on subsequent runs if the file is complete and valid.
 
@@ -241,7 +241,7 @@ facts here.** Load only metadata.
 
 ### 4a. Load improvement log bias
 
-Read `{REPO_ROOT}\.cv-cl-improvement-log.jsonl`.
+Read `{REPO_ROOT}\logs/cv-cl-improvement-log.jsonl`.
 If it exists, load the last 10 entries.
 
 For each story label, compute a `history_penalty`:
@@ -689,14 +689,14 @@ Update checkpoint: set `"step_completed": 8`.
 }
 ```
 
-Write to `{REPO_ROOT}\.cv-cover-letter-tmp.json`.
+Write to `{REPO_ROOT}\.tmp/cv-cover-letter-tmp.json`.
 
 ### 9b. Render DOCX
 
 ```
 uv run --project "{REPO_ROOT}" \
     python "{REPO_ROOT}/tools/render_cover_letter.py" \
-    "{REPO_ROOT}/.cv-cover-letter-tmp.json"
+    "{REPO_ROOT}/.tmp/cv-cover-letter-tmp.json"
 ```
 
 Capture stdout as `cl_docx_path`.
@@ -719,7 +719,7 @@ Run:
 ```
 uv run --project "{REPO_ROOT}" \
     python "{REPO_ROOT}/tools/enforce_one_page_cover_letter.py" \
-    "{REPO_ROOT}/.cv-cover-letter-tmp.json"
+    "{REPO_ROOT}/.tmp/cv-cover-letter-tmp.json"
 ```
 
 This script:
@@ -741,7 +741,7 @@ Parse stdout JSON:
 Set `cl_docx_path` and `cl_pdf_path` from this JSON output.
 
 If the script fails (still >1 page):
-- append an entry to `.cv-cl-past-errors.jsonl`
+- append an entry to `logs/cv-cl-past-errors.jsonl`
 - trigger targeted refinement to reduce verbosity, then rerun Step 9d
 - maximum 2 layout retries + 1 text-compression retry
 
@@ -756,7 +756,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(r'{REPO_ROOT}') / '.env')
 
-meta    = json.loads(open(r'{REPO_ROOT}/.cv-apply-meta-tmp.json', encoding='utf-8').read())
+meta    = json.loads(open(r'{REPO_ROOT}/.tmp/cv-apply-meta-tmp.json', encoding='utf-8').read())
 cl_docx = sys.argv[1]
 cl_pdf  = sys.argv[2]
 
@@ -802,7 +802,7 @@ Update checkpoint: `"cl_docx_path"`, `"cl_pdf_path"`, `"step_completed": 9`.
 
 **Purpose:** capture what worked for future story scoring.
 
-Append one JSON line to `{REPO_ROOT}\.cv-cl-improvement-log.jsonl`:
+Append one JSON line to `{REPO_ROOT}\logs/cv-cl-improvement-log.jsonl`:
 
 ```json
 {
@@ -822,7 +822,7 @@ Append one JSON line to `{REPO_ROOT}\.cv-cl-improvement-log.jsonl`:
 ```
 
 If there were writing-rule failures, page-overflow failures, or repeated refinements,
-append one JSON line per failure to `{REPO_ROOT}\.cv-cl-past-errors.jsonl`:
+append one JSON line per failure to `{REPO_ROOT}\logs\cv-cl-past-errors.jsonl`:
 
 ```json
 {
@@ -846,10 +846,10 @@ Past-errors log updated.
 ```
 
 Delete the temporary files:
-- `.cv-cl-checkpoint.json` (clear for next run)
-- `.cv-cover-letter-tmp.json`
+- `.tmp/cv-cl-checkpoint.json` (clear for next run)
+- `.tmp/cv-cover-letter-tmp.json`
 
-Do NOT delete `.cv-cl-improvement-log.jsonl` - this persists across all runs.
+Do NOT delete `logs/cv-cl-improvement-log.jsonl` - this persists across all runs.
 
 ---
 
@@ -877,3 +877,4 @@ Step 1 and immediately written to checkpoint; they are not used again directly.
 | `job_title` | Selected job row |
 | `job_id` | Selected job row |
 | `keywords` | JD extraction step in cv-apply |
+

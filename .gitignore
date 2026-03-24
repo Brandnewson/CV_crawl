@@ -54,5 +54,9 @@ output/
 # Pipeline temp directory
 .tmp/
 
+# Runtime state directories
+data/
+logs/cv-*.jsonl
+
 # Local Claude settings (machine-specific)
 .claude/settings.local.json

@@ -1,4 +1,4 @@
-# /cv-apply - Tailored CV Generator
+﻿# /cv-apply - Tailored CV Generator
 
 Takes a job from your PostgreSQL pipeline, runs gap-fill Q&A, writes a CV tailored
 to that job, and produces a DOCX + PDF in `{REPO_ROOT}\output\`.
@@ -9,16 +9,16 @@ to that job, and produces a DOCX + PDF in `{REPO_ROOT}\output\`.
 
 | Asset | Path |
 |---|---|
-| Experience store | `{REPO_ROOT}\.cv-harvest-store.json` |
-| Work experience bank | `{REPO_ROOT}\.cv-work-experience.json` |
-| Experience cache | `{REPO_ROOT}\.experience-cache.json` |
-| Evidence pack tmp | `{REPO_ROOT}\.tmp\.cv-apply-evidence-pack-tmp.json` |
-| Slot plan tmp | `{REPO_ROOT}\.tmp\.cv-apply-slot-plan-tmp.json` |
-| Coverage plan tmp | `{REPO_ROOT}\.tmp\.cv-apply-coverage-plan-tmp.json` |
-| Coverage review tmp | `{REPO_ROOT}\.tmp\.cv-apply-coverage-review-tmp.json` |
-| Checkpoint | `{REPO_ROOT}\.tmp\.cv-apply-checkpoint.json` |
-| Fact patches log | `{REPO_ROOT}\.cv-fact-patches.jsonl` |
-| Run metrics log | `{REPO_ROOT}\.cv-apply-run-metrics.jsonl` |
+| Experience store | `{REPO_ROOT}\data\cv-harvest-store.json` |
+| Work experience bank | `{REPO_ROOT}\data\cv-work-experience.json` |
+| Experience cache | `{REPO_ROOT}\data\experience-cache.json` |
+| Evidence pack tmp | `{REPO_ROOT}\.tmp\cv-apply-evidence-pack-tmp.json` |
+| Slot plan tmp | `{REPO_ROOT}\.tmp\cv-apply-slot-plan-tmp.json` |
+| Coverage plan tmp | `{REPO_ROOT}\.tmp\cv-apply-coverage-plan-tmp.json` |
+| Coverage review tmp | `{REPO_ROOT}\.tmp\cv-apply-coverage-review-tmp.json` |
+| Checkpoint | `{REPO_ROOT}\.tmp\cv-apply-checkpoint.json` |
+| Fact patches log | `{REPO_ROOT}\logs\cv-fact-patches.jsonl` |
+| Run metrics log | `{REPO_ROOT}\logs\cv-apply-run-metrics.jsonl` |
 | CV template (2-page) | `{REPO_ROOT}\profile\cv_template.docx` |
 | Template map (2-page) | `{REPO_ROOT}\profile\template_map.json` |
 | CV template (1-page) | `{REPO_ROOT}\profile\cv_template_1page.docx` |
@@ -51,7 +51,7 @@ uv run --project "{REPO_ROOT}" \
 ```
 
 Rules:
-- `.cv-apply-checkpoint.json` is the single orchestration source of truth.
+- `cv-apply-checkpoint.json` is the single orchestration source of truth.
 - Each stage writes artifacts + `step_completed` before moving forward.
 - Retry policy is max 2 retries per stage output validation.
 - Resume always starts from `step_completed + 1`.
@@ -84,7 +84,7 @@ Runner stage graph:
 ---
 ## ORCHESTRATOR - run this sequence
 
-### Step -1 — Detect repo root and load user config
+### Step -1 â€” Detect repo root and load user config
 
 Run:
 ```
@@ -100,7 +100,32 @@ If `user_config.yaml` does not exist, tell the user to run `/cv-setup` first and
 
 ---
 
-### Step 0 - Query ranked jobs from DB
+### Step 0 - Intake source (URL or DB)
+
+Ask first:
+**"Paste a job URL to ingest directly, or press Enter to browse DB jobs:"**
+
+If the user provides a URL:
+
+1. Run:
+```
+uv run --project "{REPO_ROOT}" \
+    python "{REPO_ROOT}/tools/job_url_ingest.py" \
+    --url "<PASTED_URL>" \
+    --meta-out "{REPO_ROOT}/.tmp/cv-apply-meta-tmp.json" \
+    --jd-out "{REPO_ROOT}/.tmp/cv-apply-jd-tmp.txt"
+```
+2. Parse JSON output and display:
+   - `job_id`
+   - `company`
+   - `job_title`
+   - `location`
+   - `job_url`
+3. Continue at **Step 1 - Load and clean JD** using the ingested description/JD artifact.
+
+If the user presses Enter, continue with the existing DB browsing flow below.
+
+### Step 0b - Query ranked jobs from DB
 
 Before executing any shell/Python snippet, read `{REPO_ROOT}\LESSONS.md`
 and apply relevant rules (especially L001 for bash quoting).
@@ -167,7 +192,7 @@ refining a CV for a job already in the pipeline.
 After job selection, ask:
 **"CV length for this run- Enter 1 or 2 pages:"**
 
-Set `cv_length_pages` to `1` or `2` and persist this in `{REPO_ROOT}\.tmp\.cv-apply-meta-tmp.json`
+Set `cv_length_pages` to `1` or `2` and persist this in `{REPO_ROOT}\.tmp\cv-apply-meta-tmp.json`
 alongside `job_id`, `company`, and `job_title`. Also persist a run-level `cv_variant_id`
 for controlled same-job rerun variation.
 
@@ -178,19 +203,19 @@ different job are present. Run:
 import json, os
 from pathlib import Path
 
-checkpoint = Path(r"{REPO_ROOT}\.tmp\.cv-apply-checkpoint.json")
+checkpoint = Path(r"{REPO_ROOT}\.tmp\cv-apply-checkpoint.json")
 selected_job_id = SELECTED_JOB_ID  # replace with the actual job_id integer
 to_delete = [
-    r"{REPO_ROOT}\.tmp\.cv-apply-evidence-pack-tmp.json",
-    r"{REPO_ROOT}\.tmp\.cv-apply-slot-plan-tmp.json",
-    r"{REPO_ROOT}\.tmp\.cv-apply-coverage-plan-tmp.json",
-    r"{REPO_ROOT}\.tmp\.cv-apply-coverage-review-tmp.json",
-    r"{REPO_ROOT}\.tmp\.cv-apply-jd-keywords-tmp.json",
-    r"{REPO_ROOT}\.tmp\.cv-apply-project-selections.json",
-    r"{REPO_ROOT}\.tmp\.cv-apply-selections-tmp.json",
-    r"{REPO_ROOT}\.tmp\.cv-apply-meta-tmp.json",
-    r"{REPO_ROOT}\.tmp\.cv-apply-context-tmp.json",
-    r"{REPO_ROOT}\.tmp\.cv-apply-jd-tmp.txt",
+    r"{REPO_ROOT}\.tmp\cv-apply-evidence-pack-tmp.json",
+    r"{REPO_ROOT}\.tmp\cv-apply-slot-plan-tmp.json",
+    r"{REPO_ROOT}\.tmp\cv-apply-coverage-plan-tmp.json",
+    r"{REPO_ROOT}\.tmp\cv-apply-coverage-review-tmp.json",
+    r"{REPO_ROOT}\.tmp\cv-apply-jd-keywords-tmp.json",
+    r"{REPO_ROOT}\.tmp\cv-apply-project-selections.json",
+    r"{REPO_ROOT}\.tmp\cv-apply-selections-tmp.json",
+    r"{REPO_ROOT}\.tmp\cv-apply-meta-tmp.json",
+    r"{REPO_ROOT}\.tmp\cv-apply-context-tmp.json",
+    r"{REPO_ROOT}\.tmp\cv-apply-jd-tmp.txt",
 ]
 if checkpoint.exists():
     try:
@@ -212,20 +237,22 @@ if checkpoint.exists():
 
 ### Step 1 - Load and clean JD
 
-1. Load the selected job's `description` field from the query results.
-2. **JD keyword cache check** — before running extraction, check for a cached file:
+1. Load JD text:
+   - DB mode: use the selected job's `description` field from query results.
+   - URL mode: use `{REPO_ROOT}\.tmp\cv-apply-jd-tmp.txt` written by `job_url_ingest.py`.
+2. **JD keyword cache check** â€” before running extraction, check for a cached file:
    `{REPO_ROOT}\.jd-keywords-cache\{job_id}.json`
    If it exists and is non-empty, load it as `keywords` and `role_family`, print
-   `Keywords loaded from cache (job {job_id}) — skipping extraction.`, display the
+   `Keywords loaded from cache (job {job_id}) â€” skipping extraction.`, display the
    keywords to the user, and skip straight to Step 2. Do NOT re-extract.
-3. If no cache hit: write the raw JD description to `{REPO_ROOT}\.tmp\.cv-apply-jd-tmp.txt`.
+3. If no cache hit: write the raw JD description to `{REPO_ROOT}\.tmp\cv-apply-jd-tmp.txt`.
 4. Extract keywords via the safe wrapper script (no inline Python):
 ```
 uv run --project "{REPO_ROOT}" \
     python "{REPO_ROOT}/tools/extract_jd_keywords.py" \
-    --jd-path "{REPO_ROOT}/.tmp/.cv-apply-jd-tmp.txt" \
+    --jd-path "{REPO_ROOT}/.tmp/cv-apply-jd-tmp.txt" \
     --job-title "<job_title>" \
-    --out "{REPO_ROOT}/.tmp/.cv-apply-jd-keywords-tmp.json" \
+    --out "{REPO_ROOT}/.tmp/cv-apply-jd-keywords-tmp.json" \
     --cache-out "{REPO_ROOT}/.jd-keywords-cache/<job_id>.json"
 ```
 
@@ -266,9 +293,9 @@ Load all three files directly (no subprocess needed - read them as part of orche
 ```
 uv run --project "{REPO_ROOT}" \
     python "{REPO_ROOT}/tools/load_cv_sources.py" \
-    --store-path "{REPO_ROOT}/.cv-harvest-store.json" \
-    --work-exp-path "{REPO_ROOT}/.cv-work-experience.json" \
-    --cache-path "{REPO_ROOT}/.experience-cache.json"
+    --store-path "{REPO_ROOT}/data/cv-harvest-store.json" \
+    --work-exp-path "{REPO_ROOT}/data/cv-work-experience.json" \
+    --cache-path "{REPO_ROOT}/data/experience-cache.json"
 ```
 
 ---
@@ -292,7 +319,7 @@ Projects in your experience store:
 Enter numbers to EXCLUDE (e.g. "3,7") or flag as PARTIAL ("p2,p9"), or press Enter to use all:
 ```
 
-Parse the user's response and save to `{REPO_ROOT}\.tmp\.cv-apply-project-selections.json`:
+Parse the user's response and save to `{REPO_ROOT}\.tmp\cv-apply-project-selections.json`:
 
 ```json
 {
@@ -346,7 +373,7 @@ Your answer (or press Enter to skip):
 After each answer:
 - If answered: save to `experience_cache[question_id] = {"answer": text, "job_id": job_id, "ts": utcnow}`
 - If skipped: save `experience_cache[question_id] = {"answer": null, "skipped": true}`
-- Write `experience_cache` back to `.experience-cache.json` immediately after each answer
+- Write `experience_cache` back to `data/experience-cache.json` immediately after each answer
 
 ```python
 import json
@@ -354,7 +381,7 @@ from datetime import datetime
 from pathlib import Path
 
 def save_cache(cache: dict) -> None:
-    Path(r"{REPO_ROOT}\.experience-cache.json").write_text(
+    Path(r"{REPO_ROOT}\data\experience-cache.json").write_text(
         json.dumps(cache, indent=2, ensure_ascii=False), encoding="utf-8"
     )
 ```
@@ -368,15 +395,15 @@ Build diversity-first claim units and subsection evidence packs before any writi
 ```
 uv run --project "{REPO_ROOT}" \
     python "{REPO_ROOT}/tools/evidence_select.py" \
-    --work-exp "{REPO_ROOT}/.cv-work-experience.json" \
-    --store "{REPO_ROOT}/.cv-harvest-store.json" \
-    --keywords "{REPO_ROOT}/.tmp/.cv-apply-jd-keywords-tmp.json" \
-    --project-selections "{REPO_ROOT}/.tmp/.cv-apply-project-selections.json" \
+    --work-exp "{REPO_ROOT}/data/cv-work-experience.json" \
+    --store "{REPO_ROOT}/data/cv-harvest-store.json" \
+    --keywords "{REPO_ROOT}/.tmp/cv-apply-jd-keywords-tmp.json" \
+    --project-selections "{REPO_ROOT}/.tmp/cv-apply-project-selections.json" \
     --template-map "<resolved_template_map_path>" \
-    --out "{REPO_ROOT}/.tmp/.cv-apply-evidence-pack-tmp.json"
+    --out "{REPO_ROOT}/.tmp/cv-apply-evidence-pack-tmp.json"
 ```
 
-Output contract (`.cv-apply-evidence-pack-tmp.json`):
+Output contract (`.tmp/cv-apply-evidence-pack-tmp.json`):
 - `claim_units`: atomic claims with `claim_id`, `action`, `system_component`, `method_tool`, `outcome_impact`, `keyword_links`, `confidence`, `source_ref`
 - `similarity_groups`: near-duplicate claim clusters
 - `evidence_packs`: per subsection `subsection_id`, `slot_count`, `allowed_fact_ids`, `disallowed_claims`, `keyword_targets`, `priority_facts`, `partial_contribution_flag`
@@ -392,12 +419,12 @@ Generate bullet intent cards and project/header assignments from the evidence pa
 ```
 uv run --project "{REPO_ROOT}" \
     python "{REPO_ROOT}/tools/slot_plan.py" \
-    --evidence "{REPO_ROOT}/.tmp/.cv-apply-evidence-pack-tmp.json" \
+    --evidence "{REPO_ROOT}/.tmp/cv-apply-evidence-pack-tmp.json" \
     --template-map "<resolved_template_map_path>" \
-    --out "{REPO_ROOT}/.tmp/.cv-apply-slot-plan-tmp.json"
+    --out "{REPO_ROOT}/.tmp/cv-apply-slot-plan-tmp.json"
 ```
 
-Output contract (`.cv-apply-slot-plan-tmp.json`):
+Output contract (`.tmp/cv-apply-slot-plan-tmp.json`):
 - `hidden_projects`, `header_swaps`
 - `bullet_intent_cards` with:
   `intent_id`, `section`, `subsection`, `slot_index`, `intent_type`,
@@ -416,10 +443,10 @@ Hard diversity constraints in this stage:
 
 ### Step 4.7 - Hard insufficiency gate (ask user before drafting)
 
-Read `.cv-apply-slot-plan-tmp.json`.
+Read `.tmp/cv-apply-slot-plan-tmp.json`.
 
 If `is_sufficient` is false, DO NOT call CV Writer yet.
-Ask each question in `insufficiency_questions` and persist answers to `.experience-cache.json` using:
+Ask each question in `insufficiency_questions` and persist answers to `data/experience-cache.json` using:
 - `question_id` as key
 - `{ "answer": text, "job_id": job_id, "ts": utcnow, "source": "slot_gap" }`
 
@@ -438,10 +465,10 @@ Run:
 ```
 uv run --project "{REPO_ROOT}" \
     python "{REPO_ROOT}/tools/coverage_plan.py" \
-    --slot-plan "{REPO_ROOT}/.tmp/.cv-apply-slot-plan-tmp.json" \
-    --jd-keywords "{REPO_ROOT}/.tmp/.cv-apply-jd-keywords-tmp.json" \
-    --out "{REPO_ROOT}/.tmp/.cv-apply-slot-plan-tmp.json" \
-    --report-out "{REPO_ROOT}/.tmp/.cv-apply-coverage-plan-tmp.json"
+    --slot-plan "{REPO_ROOT}/.tmp/cv-apply-slot-plan-tmp.json" \
+    --jd-keywords "{REPO_ROOT}/.tmp/cv-apply-jd-keywords-tmp.json" \
+    --out "{REPO_ROOT}/.tmp/cv-apply-slot-plan-tmp.json" \
+    --report-out "{REPO_ROOT}/.tmp/cv-apply-coverage-plan-tmp.json"
 ```
 
 Rules:
@@ -453,7 +480,7 @@ Rules:
 
 ### Step 4.9 - Coverage review gate (mandatory before drafting)
 
-Read `{REPO_ROOT}\.tmp\.cv-apply-coverage-plan-tmp.json` and show:
+Read `{REPO_ROOT}\.tmp\cv-apply-coverage-plan-tmp.json` and show:
 - uncovered required terms
 - uncovered nice-to-have terms
 - support evidence cards suggested for each uncovered term
@@ -463,7 +490,7 @@ Ask user whether to:
 - provide additional facts / request reallocation.
 
 Persist acknowledgement to:
-`{REPO_ROOT}\.tmp\.cv-apply-coverage-review-tmp.json`
+`{REPO_ROOT}\.tmp\cv-apply-coverage-review-tmp.json`
 with at least:
 ```json
 {"status":"approved","notes":"..."}
@@ -490,7 +517,7 @@ slot plan (this avoids sending the full 64KB file into the sub-agent's context):
 import json
 from pathlib import Path
 
-sp = json.loads(Path(r"{REPO_ROOT}\.tmp\.cv-apply-slot-plan-tmp.json").read_text())
+sp = json.loads(Path(r"{REPO_ROOT}\.tmp\cv-apply-slot-plan-tmp.json").read_text())
 writer_context = {
     "hidden_projects": sp["hidden_projects"],
     "header_swaps": sp["header_swaps"],
@@ -568,7 +595,7 @@ Produce a single JSON object:
       "provenance": {
         "primary_claim_id": "work_jaguar_tcs_racing_0",
         "secondary_claim_ids": ["work_jaguar_tcs_racing_1"],
-        "source_ref": {"source": ".cv-work-experience.json", "org": "Jaguar TCS Racing", "fact_index": 0}
+        "source_ref": {"source": "data/cv-work-experience.json", "org": "Jaguar TCS Racing", "fact_index": 0}
       },
       "source": "rephrasing",
       "rephrase_generation": 0
@@ -586,15 +613,15 @@ Every approved bullet must include intent_id and provenance.
 
 ### Step 5b - Deterministic validation gate (length + verb + anti-redundancy)
 
-After receiving the CV Writer's JSON output, write it to `{REPO_ROOT}\.tmp\.cv-apply-selections-tmp.json`,
+After receiving the CV Writer's JSON output, write it to `{REPO_ROOT}\.tmp\cv-apply-selections-tmp.json`,
 then run the canonical validator contract:
 
 ```
 uv run --project "{REPO_ROOT}" \
     python "{REPO_ROOT}/tools/validate_cv_output.py" \
-    --selections "{REPO_ROOT}/.tmp/.cv-apply-selections-tmp.json" \
-    --slot-plan "{REPO_ROOT}/.tmp/.cv-apply-slot-plan-tmp.json" \
-    --work-exp "{REPO_ROOT}/.cv-work-experience.json"
+    --selections "{REPO_ROOT}/.tmp/cv-apply-selections-tmp.json" \
+    --slot-plan "{REPO_ROOT}/.tmp/cv-apply-slot-plan-tmp.json" \
+    --work-exp "{REPO_ROOT}/data/cv-work-experience.json"
 ```
 
 This single gate enforces:
@@ -624,14 +651,14 @@ Only proceed to Step 6 when `validate_cv_output.py` returns `ok: true`.
 ```
 uv run --project "{REPO_ROOT}" \
     python "{REPO_ROOT}/render_cv.py" \
-    --meta-path "{REPO_ROOT}/.tmp/.cv-apply-meta-tmp.json" \
-    --selections-path "{REPO_ROOT}/.tmp/.cv-apply-selections-tmp.json" \
+    --meta-path "{REPO_ROOT}/.tmp/cv-apply-meta-tmp.json" \
+    --selections-path "{REPO_ROOT}/.tmp/cv-apply-selections-tmp.json" \
     --template-path "<resolved_template_path>" \
     --template-map-path "<resolved_template_map_path>" \
     --insert-page-break-before-technical-projects "<true_or_false>"
 ```
 
-Write `{"job_id": ..., "company": ..., "job_title": ..., "cv_length_pages": 1|2}` to `{REPO_ROOT}\.tmp\.cv-apply-meta-tmp.json` before running.
+Write `{"job_id": ..., "company": ..., "job_title": ..., "cv_length_pages": 1|2}` to `{REPO_ROOT}\.tmp\cv-apply-meta-tmp.json` before running.
 Capture stdout as the DOCX path.
 
 ---
@@ -666,7 +693,7 @@ def normalise_for_check(text: str) -> str:
     return re.sub(r'[\u200b\u200c\u200d\ufeff]', '', text)
 
 doc = Document("<docx_path>")
-selections = json.loads(Path(r"{REPO_ROOT}\.tmp\.cv-apply-selections-tmp.json").read_text(encoding="utf-8"))
+selections = json.loads(Path(r"{REPO_ROOT}\.tmp\cv-apply-selections-tmp.json").read_text(encoding="utf-8"))
 
 # Build expected state from selections
 expected_headers = {s["subsection"]: s["text"] for s in selections.get("header_swaps", [])}
@@ -723,7 +750,7 @@ template_placeholders = ["Formula Student Lap Time Simulator", "Radiator Thermal
                          "Formula Student EV Battery Management"]
 for placeholder in template_placeholders:
     if placeholder in docx_text_full:
-        issues.append(f"TEMPLATE PLACEHOLDER REMAINS: '{placeholder}' — header_swap not applied")
+        issues.append(f"TEMPLATE PLACEHOLDER REMAINS: '{placeholder}' â€” header_swap not applied")
 
 if issues:
     print("SANITY CHECK FAILED:")
@@ -845,18 +872,18 @@ uv run --project "{REPO_ROOT}" \
   Keywords covered: [N of M required keywords]
 ```
 
-5. **Post-run cleanup** — delete large intermediate artifacts (evidence pack and slot plan
+5. **Post-run cleanup** â€” delete large intermediate artifacts (evidence pack and slot plan
    are no longer needed; selections and meta are kept for Step 9 cover letter handoff):
 
 ```python
 import os
 for f in [
-    r"{REPO_ROOT}\.tmp\.cv-apply-evidence-pack-tmp.json",
-    r"{REPO_ROOT}\.tmp\.cv-apply-slot-plan-tmp.json",
-    r"{REPO_ROOT}\.tmp\.cv-apply-coverage-plan-tmp.json",
-    r"{REPO_ROOT}\.tmp\.cv-apply-coverage-review-tmp.json",
-    r"{REPO_ROOT}\.tmp\.cv-apply-jd-keywords-tmp.json",
-    r"{REPO_ROOT}\.tmp\.cv-apply-jd-tmp.txt",
+    r"{REPO_ROOT}\.tmp\cv-apply-evidence-pack-tmp.json",
+    r"{REPO_ROOT}\.tmp\cv-apply-slot-plan-tmp.json",
+    r"{REPO_ROOT}\.tmp\cv-apply-coverage-plan-tmp.json",
+    r"{REPO_ROOT}\.tmp\cv-apply-coverage-review-tmp.json",
+    r"{REPO_ROOT}\.tmp\cv-apply-jd-keywords-tmp.json",
+    r"{REPO_ROOT}\.tmp\cv-apply-jd-tmp.txt",
 ]:
     try:
         os.remove(f)
@@ -887,3 +914,5 @@ null in the DB (set in Step 8 above).
 The cover-letter-generation skill handles all sub-steps internally (address loading,
 story selection, writing, humanisation, approval loop, render, DB update). Follow
 its instructions from Step 1 through Step 9.
+
+

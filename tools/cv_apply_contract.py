@@ -8,6 +8,9 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+TMP_DIR = REPO_ROOT / ".tmp"
+DATA_DIR = REPO_ROOT / "data"
+LOG_DIR = REPO_ROOT / "logs"
 
 
 def _load_user_config() -> dict:
@@ -28,16 +31,18 @@ DEFAULT_TRACKER_PATH = Path(
 )
 
 
-def ensure_tmp_dir() -> None:
-    (REPO_ROOT / ".tmp").mkdir(exist_ok=True)
+def ensure_runtime_dirs() -> None:
+    TMP_DIR.mkdir(exist_ok=True)
+    DATA_DIR.mkdir(exist_ok=True)
+    LOG_DIR.mkdir(exist_ok=True)
 
 
-ensure_tmp_dir()
+ensure_runtime_dirs()
 
 CHECKPOINT_SCHEMA_VERSION = 2
-DEFAULT_CHECKPOINT_PATH = REPO_ROOT / ".tmp" / ".cv-apply-checkpoint.json"
-DEFAULT_FACT_PATCH_LOG = REPO_ROOT / ".cv-fact-patches.jsonl"
-DEFAULT_METRICS_LOG = REPO_ROOT / ".cv-apply-run-metrics.jsonl"
+DEFAULT_CHECKPOINT_PATH = TMP_DIR / "cv-apply-checkpoint.json"
+DEFAULT_FACT_PATCH_LOG = LOG_DIR / "cv-fact-patches.jsonl"
+DEFAULT_METRICS_LOG = LOG_DIR / "cv-apply-run-metrics.jsonl"
 
 BULLET_POLICY = {
     "hard_max_chars": 120,
@@ -68,21 +73,24 @@ CV_FORMAT_PROFILES = {
 }
 
 CANONICAL_FACT_STORES = {
-    "work_experience": REPO_ROOT / ".cv-work-experience.json",
-    "projects": REPO_ROOT / ".cv-harvest-store.json",
-    "experience_cache": REPO_ROOT / ".experience-cache.json",
-    "promoted_facts": REPO_ROOT / ".cv-facts-promoted.json",
+    "profile": DATA_DIR / "cv-profile.json",
+    "work_experience": DATA_DIR / "cv-work-experience.json",
+    "projects": DATA_DIR / "cv-harvest-store.json",
+    "experience_cache": DATA_DIR / "experience-cache.json",
+    "promoted_facts": DATA_DIR / "cv-facts-promoted.json",
 }
 
 ARTIFACT_DEFAULT_PATHS = {
-    "jd_keywords": REPO_ROOT / ".tmp" / ".cv-apply-jd-keywords-tmp.json",
-    "project_selections": REPO_ROOT / ".tmp" / ".cv-apply-project-selections.json",
-    "evidence_packs": REPO_ROOT / ".tmp" / ".cv-apply-evidence-pack-tmp.json",
-    "slot_plan": REPO_ROOT / ".tmp" / ".cv-apply-slot-plan-tmp.json",
-    "coverage_plan": REPO_ROOT / ".tmp" / ".cv-apply-coverage-plan-tmp.json",
-    "coverage_review": REPO_ROOT / ".tmp" / ".cv-apply-coverage-review-tmp.json",
-    "draft_sections": REPO_ROOT / ".tmp" / ".cv-apply-selections-tmp.json",
-    "meta": REPO_ROOT / ".tmp" / ".cv-apply-meta-tmp.json",
+    "jd_text": TMP_DIR / "cv-apply-jd-tmp.txt",
+    "jd_keywords": TMP_DIR / "cv-apply-jd-keywords-tmp.json",
+    "project_selections": TMP_DIR / "cv-apply-project-selections.json",
+    "evidence_packs": TMP_DIR / "cv-apply-evidence-pack-tmp.json",
+    "slot_plan": TMP_DIR / "cv-apply-slot-plan-tmp.json",
+    "coverage_plan": TMP_DIR / "cv-apply-coverage-plan-tmp.json",
+    "coverage_review": TMP_DIR / "cv-apply-coverage-review-tmp.json",
+    "draft_sections": TMP_DIR / "cv-apply-selections-tmp.json",
+    "meta": TMP_DIR / "cv-apply-meta-tmp.json",
+    "cover_letter_handoff": TMP_DIR / "cv-apply-cover-letter-handoff.json",
 }
 
 STAGE_ORDER = [

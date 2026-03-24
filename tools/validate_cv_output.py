@@ -223,9 +223,9 @@ def main() -> None:
         description="Canonical deterministic validator for CV selections",
         allow_abbrev=False,
     )
-    parser.add_argument("--selections", required=True, help="Path to .cv-apply-selections-tmp.json")
-    parser.add_argument("--slot-plan", required=True, help="Path to .cv-apply-slot-plan-tmp.json")
-    parser.add_argument("--work-exp", help="Optional path to .cv-work-experience.json for explicit_not checks")
+    parser.add_argument("--selections", required=True, help="Path to .tmp/cv-apply-selections-tmp.json")
+    parser.add_argument("--slot-plan", required=True, help="Path to .tmp/cv-apply-slot-plan-tmp.json")
+    parser.add_argument("--work-exp", help="Optional path to data/cv-work-experience.json for explicit_not checks")
     parser.add_argument("--min-len", type=int, default=HARD_MIN_LEN)
     parser.add_argument("--hard-max-len", type=int, default=HARD_MAX_LEN)
     parser.add_argument("--target-len", type=int, default=110)

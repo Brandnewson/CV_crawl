@@ -31,10 +31,10 @@ def main() -> None:
     cache_path = Path(args.cache_path)
 
     if not store_path.exists():
-        print("ERROR: .cv-harvest-store.json not found. Run /cv-harvest first.", file=sys.stderr)
+        print(f"ERROR: store file not found: {store_path}. Run /cv-harvest first.", file=sys.stderr)
         sys.exit(1)
     if not work_exp_path.exists():
-        print("ERROR: .cv-work-experience.json not found.", file=sys.stderr)
+        print(f"ERROR: work experience file not found: {work_exp_path}", file=sys.stderr)
         sys.exit(1)
 
     payload = {

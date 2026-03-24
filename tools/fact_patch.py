@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -32,10 +30,6 @@ def _load(path: Path) -> dict[str, Any]:
 
 def _write(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-
-
-def _utcnow() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def append_patch_log(entry: dict[str, Any], path: Path = DEFAULT_FACT_PATCH_LOG) -> None:
@@ -104,33 +98,6 @@ def apply_patch_if_safe(
         return False, "target project not found"
 
     return False, f"Unsupported target_store: {target_store}"
-
-
-def build_patch(
-    *,
-    job_id: int,
-    feedback_text: str,
-    target_store: str,
-    target_record_id: str,
-    after: str,
-    source: str,
-) -> dict[str, Any]:
-    feedback_type = classify_feedback(feedback_text)
-    return {
-        "patch_id": str(uuid.uuid4()),
-        "job_id": job_id,
-        "timestamp": _utcnow(),
-        "feedback_type": feedback_type,
-        "target_store": target_store,
-        "target_record_id": target_record_id,
-        "before": "",
-        "after": after,
-        "conflict_check": {"ok": True, "reason": ""},
-        "applied": False,
-        "superseded_by": None,
-        "source": source,
-        "feedback_text": feedback_text,
-    }
 
 
 def main() -> None:

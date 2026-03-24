@@ -18,6 +18,8 @@ from typing import Any
 import psycopg2
 from dotenv import load_dotenv
 
+from tools.cv_apply_contract import ARTIFACT_DEFAULT_PATHS
+
 
 def _utcnow():
     return datetime.now(timezone.utc)
@@ -110,7 +112,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Persist CV paths to DB without touching cover letter fields")
     parser.add_argument("pos_docx", nargs="?")
     parser.add_argument("pos_pdf", nargs="?")
-    parser.add_argument("--meta", default=str(Path(__file__).resolve().parent / ".tmp" / ".cv-apply-meta-tmp.json"))
+    parser.add_argument("--meta", default=str(ARTIFACT_DEFAULT_PATHS["meta"]))
     parser.add_argument("--docx", dest="opt_docx")
     parser.add_argument("--pdf", dest="opt_pdf")
     args = parser.parse_args()

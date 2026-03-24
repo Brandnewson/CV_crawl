@@ -32,7 +32,6 @@ from cv_apply_contract import (
     DEFAULT_CHECKPOINT_PATH,
     DEFAULT_FACT_PATCH_LOG,
     DEFAULT_METRICS_LOG,
-    REPO_ROOT,
     STAGE_ORDER,
     stage_index,
     stages_to_invalidate,
@@ -41,11 +40,13 @@ from coverage_plan import build_coverage_plan
 from docx_to_pdf import convert as convert_docx_to_pdf
 from evidence_select import build_evidence
 from fact_patch import apply_patch_if_safe, classify_feedback
+from job_url_ingest import ingest_job_url, write_artifacts as write_url_ingest_artifacts
 from reconcile_slot_plan_targets import reconcile_slot_plan_targets
 from slot_plan import build_slot_plan
 from update_db import persist_cv_paths
 from validate_cv_output import validate as validate_cv_output
 from wrap_optimizer import detect_wrapped_bullets, rephrase_wrapped_bullets
+from agent.jd_parser import extract_keywords_safe
 
 
 MAX_STAGE_RETRIES = 2
@@ -102,6 +103,11 @@ class RunnerArgs:
     patch_json: Path | None
     docx_path: str | None
     pdf_path: str | None
+    job_url: str | None
+    job_title: str | None
+    company: str | None
+    location: str | None
+    user_id: int
 
 
 class StageBlockedError(RuntimeError):
@@ -228,6 +234,25 @@ class CVApplyRunner:
             "error": "",
             "updated_at": _utcnow(),
         }
+
+    def _bootstrap_meta_from_job_url(self) -> dict[str, Any]:
+        if not self.args.job_url:
+            raise StageBlockedError("job_url bootstrap requested without --job-url")
+
+        payload = ingest_job_url(
+            url=self.args.job_url,
+            user_id=self.args.user_id,
+            title_override=self.args.job_title or "",
+            company_override=self.args.company or "",
+            location_override=self.args.location or "",
+            skip_db=False,
+        )
+        write_url_ingest_artifacts(
+            payload=payload,
+            meta_out=self.args.meta_path,
+            jd_out=ARTIFACT_DEFAULT_PATHS["jd_text"],
+        )
+        return _load_json(self.args.meta_path, default={})
 
     def _load_checkpoint(self) -> dict[str, Any]:
         existing = _load_json(self.args.checkpoint)
@@ -400,10 +425,19 @@ class CVApplyRunner:
     # Stage handlers
     def stage_job_select(self) -> dict[str, Any]:
         meta = _load_json(self.args.meta_path)
+        if self.args.job_url and not self.args.resume:
+            meta = self._bootstrap_meta_from_job_url()
+            if self.args.keywords_path.exists():
+                self.args.keywords_path.unlink()
+        elif not meta and self.args.job_url:
+            meta = self._bootstrap_meta_from_job_url()
         if not meta:
             raise StageBlockedError(f"Missing job meta file: {self.args.meta_path}")
         required = ("job_id", "company", "job_title")
         missing = [k for k in required if k not in meta]
+        if missing and self.args.job_url:
+            meta = self._bootstrap_meta_from_job_url()
+            missing = [k for k in required if k not in meta]
         if missing:
             raise StageBlockedError(f"job_meta missing required keys: {missing}")
         cv_variant_id = self._ensure_cv_variant_id(meta)
@@ -411,6 +445,19 @@ class CVApplyRunner:
         return {"job_meta": meta, "cv_format_profile": cv_format_profile, "cv_variant_id": cv_variant_id}
 
     def stage_jd_extract(self) -> dict[str, Any]:
+        if not self.args.keywords_path.exists() and self.args.job_url:
+            meta = self.ckpt.get("artifacts", {}).get("job_meta") or _load_json(self.args.meta_path, default={})
+            jd_text = str(meta.get("job_description", "")).strip()
+            if not jd_text and ARTIFACT_DEFAULT_PATHS["jd_text"].exists():
+                jd_text = ARTIFACT_DEFAULT_PATHS["jd_text"].read_text(encoding="utf-8-sig").strip()
+            if jd_text:
+                payload = extract_keywords_safe(
+                    job_description=jd_text,
+                    job_title=str(meta.get("job_title", "")),
+                    user_id=self.args.user_id,
+                )
+                _write_json(self.args.keywords_path, payload)
+
         if not self.args.keywords_path.exists():
             raise StageBlockedError(f"Missing jd keywords file: {self.args.keywords_path}")
         jd_keywords = _load_json(self.args.keywords_path)
@@ -866,7 +913,7 @@ class CVApplyRunner:
             "docx_path": outputs.get("docx_path"),
             "pdf_path": outputs.get("pdf_path"),
         }
-        handoff_path = REPO_ROOT / ".cv-apply-cover-letter-handoff.json"
+        handoff_path = ARTIFACT_DEFAULT_PATHS["cover_letter_handoff"]
         _write_json(handoff_path, handoff)
         return {"cover_letter_handoff": {"path": str(handoff_path)}}
 
@@ -900,6 +947,11 @@ def parse_args() -> RunnerArgs:
     parser.add_argument("--patch-json")
     parser.add_argument("--docx-path")
     parser.add_argument("--pdf-path")
+    parser.add_argument("--job-url", help="Optional job URL intake path for cv-apply")
+    parser.add_argument("--job-title", help="Optional title override for --job-url ingestion")
+    parser.add_argument("--company", help="Optional company override for --job-url ingestion")
+    parser.add_argument("--location", help="Optional location override for --job-url ingestion")
+    parser.add_argument("--user-id", type=int, default=1)
     ns = parser.parse_args()
     return RunnerArgs(
         checkpoint=Path(ns.checkpoint),
@@ -927,6 +979,11 @@ def parse_args() -> RunnerArgs:
         patch_json=Path(ns.patch_json) if ns.patch_json else None,
         docx_path=ns.docx_path,
         pdf_path=ns.pdf_path,
+        job_url=ns.job_url,
+        job_title=ns.job_title,
+        company=ns.company,
+        location=ns.location,
+        user_id=ns.user_id,
     )
 
 
