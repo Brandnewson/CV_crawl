@@ -508,26 +508,48 @@ Do not draft until review file is approved.
 
 ---
 
-### Step 5 - CV Writer sub-agent
+### Step 5 - CV Writer sub-agents (parallel, one per subsection)
 
-**Before spawning the sub-agent**, extract the three keys the CV Writer needs from the
-slot plan (this avoids sending the full 64KB file into the sub-agent's context):
+**Step 5a — Group brief cards by subsection:**
 
 ```python
 import json
 from pathlib import Path
+from collections import defaultdict
 
-sp = json.loads(Path(r"{REPO_ROOT}\.tmp\cv-apply-slot-plan-tmp.json").read_text())
-writer_context = {
-    "hidden_projects": sp["hidden_projects"],
-    "header_swaps": sp["header_swaps"],
-    "writer_brief_cards": sp["writer_brief_cards"],
-}
-print(json.dumps(writer_context, indent=2))
+sp = json.loads(Path(r"{REPO_ROOT}\.tmp\cv-apply-slot-plan-tmp.json").read_text(encoding="utf-8"))
+hidden = sp["hidden_projects"]
+header_swaps = sp["header_swaps"]
+
+cards_by_subsection = defaultdict(list)
+for card in sp["writer_brief_cards"]:
+    key = (card["section"], card["subsection"])
+    cards_by_subsection[key].append(card)
+
+# Build per-subsection header swap lookup
+swap_by_subsection = {s["subsection"]: s for s in header_swaps}
+
+print(json.dumps({
+    "hidden_projects": hidden,
+    "header_swaps": header_swaps,
+    "subsections": [
+        {
+            "section": k[0],
+            "subsection": k[1],
+            "cards": v,
+            "header_swap": swap_by_subsection.get(k[1])
+        }
+        for k, v in cards_by_subsection.items()
+        if k[1] not in hidden
+    ]
+}, indent=2, ensure_ascii=False))
 ```
 
-Capture the output as `writer_context_json`. Then spawn a CV Writer sub-agent with the
-following compact context, substituting `[WRITER_CONTEXT_JSON]` with the captured output:
+**Step 5b — Spawn one Agent per subsection IN PARALLEL** (single message, multiple Agent
+tool calls). Each agent receives ONLY its subsection's cards — not the full slot plan.
+
+Subsection agent prompt template (fill `[SUBSECTION]`, `[SECTION]`, `[CARDS_JSON]`,
+`[HEADER_SWAP_JSON]` and JD fields for each agent):
 
 ```
 You are a senior technical CV writer for a motorsport/software engineering graduate.
@@ -542,8 +564,13 @@ Role family: [role_family]
 Required keywords: [keywords.required joined by ", "]
 Nice-to-have: [keywords.nice_to_have joined by ", "]
 
-=== SLOT PLAN (MANDATORY SOURCE OF TRUTH) ===
-[WRITER_CONTEXT_JSON]
+=== YOUR SUBSECTION ===
+Section: [SECTION]
+Subsection: [SUBSECTION]
+Header swap (if any): [HEADER_SWAP_JSON or "none"]
+
+=== BRIEF CARDS FOR THIS SUBSECTION (MANDATORY SOURCE OF TRUTH) ===
+[CARDS_JSON]
 
 Each writer_brief_card provides:
 - intent_id
@@ -566,47 +593,79 @@ You must realise each card as one bullet. Do not invent new cards.
 - Mirror JD keyword language exactly where the intent evidence supports it
 - If `keyword_target` is non-empty for a card, include that phrase verbatim (case-insensitive) in the bullet text
 - Never introduce claims outside primary_claim or secondary_claims for the same intent_id
-- No banned phrases: "fast-paced", "passionate about", "team player", "good", "bad", 
-"leveraged synergies", "results-driven", "dynamic team"
-- QUALITY GATE: Every bullet must either (a) hit a JD keyword from the required or
-  nice-to-have lists, OR (b) state a concrete outcome or metric. A bullet that only
-  restates the job title or describes presence in a team adds no value and must be
-  rewritten or replaced. If you cannot produce a quality bullet for a slot, output
+- No banned phrases: "fast-paced", "passionate about", "team player", "good", "bad",
+  "leveraged synergies", "results-driven", "dynamic team"
+- QUALITY GATE: Every bullet must either (a) hit a JD keyword, OR (b) state a concrete
+  outcome or metric. If you cannot produce a quality bullet for a slot, output
   "ASK_USER: [fact needed]" rather than a weak bullet.
 - Use British English throughout (optimised, analysed, modelling, etc.)
-- VERB DEDUPLICATION: Across all approved_bullets, no past-tense action verb may start more than 2 bullets. Count first-word verb occurrences before finalising output; replace 3rd+ occurrences with a strong synonym verb that fits the bullet's meaning.
+- NOTE: Do NOT enforce global verb deduplication — the orchestrator handles that after
+  all subsection agents finish. Just use strong, varied past-tense action verbs.
 
 === OUTPUT FORMAT ===
-Produce a single JSON object:
+Return ONLY a JSON array of approved_bullets for this subsection:
 
-{
-  "job_id": [job_id],
-  "user_id": 1,
-  "session_timestamp": "[ISO UTC timestamp]",
-  "hidden_projects": [copy exactly from slot plan],
-  "header_swaps": [copy exactly from slot plan],
-  "approved_bullets": [
-    {
-      "slot_index": 0,
-      "section": "work_experience",
-      "subsection": "Jaguar TCS Racing",
-      "text": "Bullet text here, optimised near 110 chars (<=120 hard max)",
-      "intent_id": "intent_work_jaguar_tcs_racing_0",
-      "provenance": {
-        "primary_claim_id": "work_jaguar_tcs_racing_0",
-        "secondary_claim_ids": ["work_jaguar_tcs_racing_1"],
-        "source_ref": {"source": "data/cv-work-experience.json", "org": "Jaguar TCS Racing", "fact_index": 0}
-      },
-      "source": "rephrasing",
-      "rephrase_generation": 0
+[
+  {
+    "slot_index": 0,
+    "section": "[SECTION]",
+    "subsection": "[SUBSECTION]",
+    "text": "Bullet text here, optimised near 110 chars (<=120 hard max)",
+    "intent_id": "intent_...",
+    "provenance": {
+      "primary_claim_id": "...",
+      "secondary_claim_ids": ["..."],
+      "source_ref": {"source": "...", "org": "...", "fact_index": 0}
     },
-    ...fill ALL non-hidden slots...
-  ]
+    "source": "rephrasing",
+    "rephrase_generation": 0
+  },
+  ...
+]
+
+Fill every slot for this subsection. Every bullet must include intent_id and provenance.
+```
+
+**Step 5c — Collect outputs, merge, global verb dedup:**
+
+After all subsection agents return their arrays, merge them and enforce verb deduplication:
+
+```python
+import json
+from collections import Counter
+from pathlib import Path
+
+# Collect all bullets from parallel agents (replace [...] with actual agent outputs)
+all_bullets = []
+for agent_bullets in [agent_1_output, agent_2_output, ...]:  # one list per agent
+    all_bullets.extend(agent_bullets)
+
+# Global verb dedup: count first-word verbs across the whole CV
+verbs = [b["text"].split()[0].lower() for b in all_bullets if b.get("text")]
+verb_counts = Counter(verbs)
+overused = {v: c for v, c in verb_counts.items() if c > 2}
+
+if overused:
+    # Re-prompt only the subsection(s) where overused verbs appear
+    # Pass banned_verbs=list(overused.keys()) to those agents with instruction to
+    # replace any bullet starting with a banned verb using a strong synonym.
+    # Max 1 re-prompt round per subsection.
+    pass
+
+# Assemble full selections JSON
+selections = {
+    "job_id": job_id,
+    "user_id": 1,
+    "session_timestamp": "<ISO UTC timestamp>",
+    "hidden_projects": hidden_projects,   # from slot plan
+    "header_swaps": header_swaps,         # from slot plan
+    "approved_bullets": all_bullets
 }
 
-IMPORTANT: Fill every slot in every non-hidden subsection.
-If a project is not hidden, all its bullet slots must have approved_bullets entries.
-Every approved bullet must include intent_id and provenance.
+Path(r"{REPO_ROOT}\.tmp\cv-apply-selections-tmp.json").write_text(
+    json.dumps(selections, indent=2, ensure_ascii=False), encoding="utf-8"
+)
+print("Selections merged and saved.")
 ```
 
 ---
@@ -646,7 +705,7 @@ Only proceed to Step 6 when `validate_cv_output.py` returns `ok: true`.
 
 ---
 
-### Step 6 - Render DOCX
+### Step 6 - Render DOCX + PDF
 
 ```
 uv run --project "{REPO_ROOT}" \
@@ -659,22 +718,68 @@ uv run --project "{REPO_ROOT}" \
 ```
 
 Write `{"job_id": ..., "company": ..., "job_title": ..., "cv_length_pages": 1|2}` to `{REPO_ROOT}\.tmp\cv-apply-meta-tmp.json` before running.
-Capture stdout as the DOCX path.
+Capture stdout as `docx_path`.
+
+**Immediately after DOCX renders**, convert to PDF:
+
+```
+uv run --project "{REPO_ROOT}" \
+    python "{REPO_ROOT}/tools/docx_to_pdf.py" "<docx_path>"
+```
+
+Capture stdout as `pdf_path`. Both `docx_path` and `pdf_path` are now available for
+the wrap gate (Step 6.5) and the preview/approval loop (Step 7). Step 8 will reuse
+these paths — do NOT re-run `docx_to_pdf.py` in Step 8.
 
 ---
 
-### Step 6.5 - Deterministic wrap optimization gate
+### Step 6.5 - Deterministic wrap gate (PDF-based, before preview)
 
-`layout_gate_2pages` now performs:
-- expected-page check
-- PDF-based wrapped-bullet detection
-- targeted wrapped-bullet rephrase retries (max retry budget), preserving:
-  - `intent_id`
-  - provenance
-  - explicit `keyword_target`
+Run the wrap detector against the already-rendered PDF:
 
-No brute-force truncation or hard cutting is allowed in this gate.
-If retries are exhausted, surface unresolved wrapped slots to user for targeted edits.
+```
+uv run --project "{REPO_ROOT}" python - <<'PY'
+import json, sys
+from pathlib import Path
+sys.path.insert(0, r"{REPO_ROOT}/tools")
+from wrap_optimizer import detect_wrapped_bullets
+from check_pdf_pages import get_page_count
+
+pdf_path  = Path(r"<pdf_path>")
+meta      = json.loads(Path(r"{REPO_ROOT}/.tmp/cv-apply-meta-tmp.json").read_text(encoding="utf-8"))
+selections = json.loads(Path(r"{REPO_ROOT}/.tmp/cv-apply-selections-tmp.json").read_text(encoding="utf-8"))
+
+pages  = get_page_count(pdf_path)
+result = detect_wrapped_bullets(pdf_path, selections)
+print(json.dumps({"pages": pages, "expected_pages": meta["cv_length_pages"], **result}, indent=2, ensure_ascii=False))
+PY
+```
+
+**If `pages != expected_pages` OR `wrapped_count > 0`:**
+
+For each wrapped bullet (from `wrapped_bullets` list), re-prompt a targeted CV Writer
+mini-agent with:
+
+```
+WRAP FIX: The following bullet is rendering across 2 lines in the PDF and must be
+shortened by ~10 characters. Preserve the intent_id, all provenance claim IDs, and
+the verbatim keyword_target. Do NOT truncate mid-phrase. Return a single JSON bullet object.
+
+intent_id: [intent_id]
+keyword_target: [keyword_target]
+primary_claim_id: [primary_claim_id]
+current_text ([N] chars): "[text]"
+```
+
+After receiving a fix, update the bullet in `cv-apply-selections-tmp.json`, re-render
+DOCX + PDF, and re-run the wrap check. **Max 3 retry rounds per slot.**
+
+If a slot still wraps after 3 rounds, print:
+`WRAP UNRESOLVED: [subsection] slot [slot_index] — manual edit needed`
+and surface to the user before proceeding to Step 6.6.
+
+No brute-force truncation or hard cutting is allowed. All rewrites must preserve
+`intent_id`, provenance, and `keyword_target`.
 
 ---
 
@@ -833,15 +938,12 @@ If user types feedback (e.g. "Remove the Travelindr section, make bullet 3 of Ja
 
 ---
 
-### Step 8 - PDF output + DB update
+### Step 8 - DB update + finalize
 
-1. Convert to PDF:
-```
-uv run --project "{REPO_ROOT}" \
-    python "{REPO_ROOT}/tools/docx_to_pdf.py" "<docx_path>"
-```
+The PDF was already generated in Step 6 — do NOT re-run `docx_to_pdf.py`. Use
+`docx_path` and `pdf_path` captured in Step 6.
 
-2. Update job status in DB:
+1. Update job status in DB:
 ```
 uv run --project "{REPO_ROOT}" \
     python "{REPO_ROOT}/update_db.py" "<docx_path>" "<pdf_path>"
